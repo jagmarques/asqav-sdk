@@ -8,38 +8,149 @@ import functools
 import hashlib
 import hmac
 import json as _json
-import logging
 import os
-import re
 import sys
 import threading
 import time
-import uuid
-from collections.abc import Callable, Generator
-from contextlib import contextmanager
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Literal, TypedDict, TypeVar
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from .phases import PhaseChain
-    from .scope import ScopeToken
+    from ..phases import PhaseChain
+    from ..scope import ScopeToken
 
-from ._sql_match import matches_pattern as _matches_pattern
-from ._useragent import USER_AGENT
-from .counterparty import (
+from .._sql_match import matches_pattern as _matches_pattern
+from .._useragent import USER_AGENT
+from ..counterparty import (
     ACKNOWLEDGMENT_RECEIPT_TYPE,
     CounterpartyBinding,
     compute_counterparty_binding,
 )
-from .credentials import resolve_api_base, resolve_api_key
-from .patterns import resolve_pattern
-from .retry import with_retry
-
-F = TypeVar("F", bound=Callable[..., Any])
-
-logger = logging.getLogger("asqav")
-
-_OWASP_AGENTIC_TOP10_IDS = frozenset(f"ASI{number:02d}" for number in range(1, 11))
+from ..credentials import resolve_api_base, resolve_api_key
+from ..patterns import resolve_pattern
+from ..retry import with_retry
+from ._budget import BudgetCheckResult as BudgetCheckResult
+from ._budget import BudgetTracker as BudgetTracker
+from ._common import (
+    _OWASP_AGENTIC_TOP10_IDS,
+    F,
+    _hash_value,
+    _parse_timestamp,
+    logger,
+)
+from ._common import (
+    generate_trace_id as generate_trace_id,
+)
+from ._delegations import create_delegation as create_delegation
+from ._delegations import get_delegation as get_delegation
+from ._delegations import list_delegations as list_delegations
+from ._delegations import revoke_delegation as revoke_delegation
+from ._errors import (
+    RESPONSE_ERROR_DOCS_URL,
+    APIError,
+    AsqavError,
+    AsqavResponseError,
+    AsqavValidationError,
+    AuthenticationError,
+    RateLimitError,
+    _connection_error,
+    _error_message,
+    _one_line,
+    require_field,
+)
+from ._errors import (
+    AsqavConnectionError as AsqavConnectionError,
+)
+from ._models import (
+    AgentResponse as AgentResponse,
+)
+from ._models import (
+    ApprovalResponse,
+    BitcoinAnchor,
+    BitcoinAnchorStatus,
+    CertificateResponse,
+    ExecutionEvidence,
+    GroupKeypairResponse,
+    GroupSignResponse,
+    KeyRefreshResponse,
+    PreflightResult,
+    RiskRuleResponse,
+    SDTokenResponse,
+    SessionResponse,
+    ShareRecoveryResponse,
+    SignatureDetail,
+    SignedActionResponse,
+    SigningEntityResponse,
+    SigningGroupResponse,
+    SigningSessionResponse,
+    TokenResponse,
+    VerificationDetail,
+    VerificationResponse,
+    _parse_bitcoin_anchor,
+)
+from ._models import (
+    DelegationResponse as DelegationResponse,
+)
+from ._sign_checks import (
+    _ALLOWED_CONTROL_KEYS,
+    _BARE_SHA256_RE,
+    _SHA256_HEX_RE,
+    _TOOL_FINGERPRINT_RE,
+    _compute_action_ref,
+    _compute_tool_fingerprint,
+    _generate_nonce,
+    _validate_authored_by,
+    _validate_counterparty_binding,
+    _validate_risk_snapshot,
+)
+from ._sign_checks import AuthoredBy as AuthoredBy
+from ._sign_checks import RiskSnapshot as RiskSnapshot
+from ._sign_checks import (
+    _compute_config_manifest_digest as _compute_config_manifest_digest,
+)
+from ._sign_checks import (
+    _compute_cve_inventory_digest as _compute_cve_inventory_digest,
+)
+from ._spans import Span as Span
+from ._spans import configure_otel as configure_otel
+from ._spans import export_spans as export_spans
+from ._spans import flush_spans as flush_spans
+from ._spans import get_current_span as get_current_span
+from ._spans import span as span
+from ._spans import span_to_otel as span_to_otel
+from ._vocabulary import (
+    _CODE_AUTHORSHIP_CHANGE_CLASS_NAMESPACE,
+    _COMPLIANCE_REQUIRED_FIELDS,
+    CAPTURE_TOPOLOGY_NAMESPACE,
+    CODE_AUTHORSHIP_DOCS_URL,
+    INCIDENT_CLASS_NAMESPACE,
+    RECEIPT_TYPE_NAMESPACE,
+    RISK_ACCEPTANCE_DOCS_URL,
+    SANDBOX_STATE_NAMESPACE,
+    WITNESS_NAMESPACE,
+    _map_policy_decision_to_decision,
+    _resolve_action_ref,
+    _resolve_previous_receipt_hash,
+)
+from ._vocabulary import (
+    DECISION_MAP as DECISION_MAP,
+)
+from ._vocabulary import (
+    DORA_INCIDENT_CLASS_NAMESPACE as DORA_INCIDENT_CLASS_NAMESPACE,
+)
+from ._vocabulary import (
+    HIPAA_INCIDENT_CLASS_NAMESPACE as HIPAA_INCIDENT_CLASS_NAMESPACE,
+)
+from ._vocabulary import (
+    CaptureTopology as CaptureTopology,
+)
+from ._vocabulary import (
+    Decision as Decision,
+)
+from ._vocabulary import (
+    PolicyDecision as PolicyDecision,
+)
 
 # Retry configuration for API calls
 _MAX_RETRIES = 5
@@ -49,7 +160,7 @@ _RETRY_DELAYS = [0.5, 1.0, 2.0, 4.0, 8.0]  # Exponential backoff
     # Strict ingest (419): API responses carrying receipts/records never parse
     # last-wins; a duplicated member name is a terminal failure, raised loud.
 def _strict_response_json(response: Any) -> dict[str, Any]:
-    from . import strict_json
+    from .. import strict_json
 
     try:
         return strict_json.loads(response.text)
@@ -77,36 +188,6 @@ def _with_retry(func: Callable[[], Any]) -> Any:
             if attempt < len(_RETRY_DELAYS) - 1:
                 time.sleep(delay)
     raise last_error
-
-
-    # Hash an arbitrary value with SHA-256 for output verification.
-def _hash_value(value: Any) -> str:
-    if isinstance(value, str):
-        raw = value.encode("utf-8")
-    elif isinstance(value, bytes):
-        raw = value
-    else:
-        raw = _json.dumps(value, sort_keys=True, default=str).encode("utf-8")
-    return hashlib.sha256(raw).hexdigest()
-
-
-    # Parse a timestamp from API response (ISO string or float).
-def _parse_timestamp(value: Any) -> float:
-    if isinstance(value, (int, float)):
-        return float(value)
-    if isinstance(value, str):
-        from datetime import datetime
-
-        # Parse ISO format datetime string
-        try:
-            # Handle both with and without timezone
-            if value.endswith("Z"):
-                value = value[:-1] + "+00:00"
-            dt = datetime.fromisoformat(value)
-            return dt.timestamp()
-        except ValueError:
-            return 0.0
-    return 0.0
 
 
 try:
@@ -148,351 +229,8 @@ _HASH_ONLY_METADATA_WHITELIST: frozenset[str] = frozenset(
 )
 
 
-    # Base exception for asqav errors.
-class AsqavError(Exception):
-
-    pass
-
-
-    # Raised when API key is missing or invalid.
-class AuthenticationError(AsqavError):
-
-    pass
-
-
-    # Raised when rate limit is exceeded.
-class RateLimitError(AsqavError):
-
-    pass
-
-
-    # Raised for general API errors.
-class APIError(AsqavError):
-
-    def __init__(self, message: str, status_code: int | None = None) -> None:
-        super().__init__(message)
-        self.status_code = status_code
-
-
-    # API unreachable (refused, DNS, timeout, TLS): APIError status 0.
-    # Not retried, so a caller's deadline (the hook gate's timeout) still holds.
-class AsqavConnectionError(APIError):
-
-    def __init__(self, message: str) -> None:
-        super().__init__(message, 0)
-
-
-    # One-line connection error naming the URL and a next step.
-def _connection_error(url: str, exc: BaseException) -> AsqavConnectionError:
-    reason = getattr(exc, "reason", None) or exc
-    return AsqavConnectionError(
-        f"Network error: {_one_line(str(reason))} (could not reach the Asqav API at {url}; "
-        "check ASQAV_API_URL or `asqav login --api-base`)"
-    )
-
-
-    # Collapse whitespace and cap length so an error message stays on one line.
-def _one_line(text: str, limit: int = 200) -> str:
-    flat = " ".join(text.split())
-    return flat if len(flat) <= limit else flat[: limit - 3] + "..."
-
-
-    # Server reason from a JSON error body: detail plus code.
-def _reason_from_body(body: Any) -> str:
-    if not isinstance(body, dict):
-        return ""
-    detail = body.get("detail") or body.get("error") or body.get("message")
-    code = body.get("code")
-    if isinstance(detail, dict):
-        code = code or detail.get("code")
-        detail = detail.get("message") or detail.get("detail")
-    if isinstance(detail, list):
-        detail = _validation_list_text(detail)
-    text = _one_line(str(detail)) if detail else ""
-    if code and str(code) not in text:
-        text = f"{text} ({code})" if text else str(code)
-    return text
-
-
-    # FastAPI validation list as "field: message; field: message".
-def _validation_list_text(items: list[Any]) -> str:
-    return "; ".join(
-        f"{e.get('loc', ['?'])[-1]}: {e.get('msg', '')}".strip(": ")
-        for e in items
-        if isinstance(e, dict)
-    ) or str(items)
-
-
-    # One-line APIError message for an HTTP error status and raw body text.
-def _error_message(status: int, text: str, body: Any = None) -> str:
-    if body is None:
-        try:
-            body = _json.loads(text)
-        except ValueError:
-            body = None
-    reason = _reason_from_body(body)
-    if reason:
-        return reason
-    flat = _one_line(text or "")
-    if not flat:
-        return f"HTTP {status}"
-    if "<" not in flat:
-        return f"HTTP {status}: {flat}"
-    return f"HTTP {status} with a non-JSON body (often a proxy or gateway error page)"
-
-
-class AsqavValidationError(ValueError):
-    """Client-side wire-vocabulary rejection with a docs pointer (rule 3.9).
-    A ValueError; ``docs_url`` names the rule page; the value is cut to 64."""
-
-    def __init__(self, message: str, *, docs_url: str) -> None:
-        super().__init__(message)
-        self.docs_url = docs_url
-
-
-class AsqavResponseError(AsqavError):
-    """Raised when a cloud response omits a field the SDK requires (rule 3.9).
-
-    Replaces a raw ``KeyError`` so callers can catch one asqav-owned type
-    with a clear message naming the missing field, instead of a bare
-    traceback pointing at an internal dict index.
-    """
-
-    def __init__(self, message: str, *, docs_url: str) -> None:
-        super().__init__(message)
-        self.docs_url = docs_url
-
-
-#: Docs page anchoring missing-required-field response errors (rule 3.9).
-RESPONSE_ERROR_DOCS_URL: str = "https://asqav.com/docs/sdk-errors"
-
-
-def require_field(data: dict[str, Any], name: str) -> Any:
-    """Return ``data[name]`` or raise ``AsqavResponseError`` if absent.
-
-    Centralizes required-field response parsing so a cloud response
-    missing e.g. ``action_id`` raises one typed, catchable error instead
-    of a raw ``KeyError`` at a random dict index.
-    """
-    if name not in data:
-        raise AsqavResponseError(
-            f"response missing required field '{name}'",
-            docs_url=RESPONSE_ERROR_DOCS_URL,
-        )
-    return data[name]
-
-
-    # Response from agent creation.
-@dataclass
-class AgentResponse:
-
-    agent_id: str
-    name: str
-    public_key: str
-    key_id: str
-    algorithm: str
-    capabilities: list[str]
-    created_at: float
-
-
-    # Response from token issuance.
-@dataclass
-class TokenResponse:
-
-    token: str
-    expires_at: float
-    algorithm: str
-
-
-    # Turn the JSON bitcoin_anchor block from the API into a typed value.
-def _parse_bitcoin_anchor(raw: dict[str, Any] | None) -> "BitcoinAnchor | None":
-    if not raw:
-        return None
-    return BitcoinAnchor(
-        status=raw.get("status") or "none",
-        anchor_tx_ref=raw.get("anchor_tx_ref"),
-        anchor_block_height=raw.get("anchor_block_height"),
-    )
-
-
-@dataclass
-class BitcoinAnchor:
-    """Anchor attestation state of a signed action; branch on ``status``.
-    ``none``, ``pending``, ``confirmed`` or ``failed`` (treat as unanchored)."""
-
-    status: str
-    anchor_tx_ref: str | None = None
-    anchor_block_height: int | None = None
-
-
-# Receipt type namespace mirrored from the cloud SignRequest validator.
-RECEIPT_TYPE_NAMESPACE: frozenset[str] = frozenset(
-    {
-        "protectmcp:decision",
-        "protectmcp:restraint",
-        "protectmcp:lifecycle",
-        "protectmcp:lifecycle:configuration_change",
-        #: risk-acceptance / exception receipt; no-policy lifecycle opt-out.
-        "protectmcp:lifecycle:risk_acceptance",
-        #: code-authorship receipt; producer-asserted record of who authored it.
-        "protectmcp:lifecycle:code_authorship",
-        "protectmcp:acknowledgment",
-        "protectmcp:observation",
-        #: observation receipts with a result_digest use :result_bound
-        "protectmcp:observation:result_bound",
-    }
-)
-
-#: Docs page anchoring the risk-acceptance validation errors (rule 3.9).
-RISK_ACCEPTANCE_DOCS_URL: str = "https://asqav.com/docs/risk-acceptance-receipt"
-
-#: Docs page anchoring the code-authorship validation errors (rule 3.9).
-CODE_AUTHORSHIP_DOCS_URL: str = "https://asqav.com/docs/code-authorship-receipt"
-
-#: Closed vocabulary for code_authorship `change_class`. Mirrors the cloud
-#: SignRequest closed set; anything outside is rejected client-side.
-_CODE_AUTHORSHIP_CHANGE_CLASS_NAMESPACE: frozenset[str] = frozenset(
-    {
-        "read",
-        "write",
-        "delete",
-        "execute",
-        "deploy",
-    }
-)
-
-#: Numeric risk-snapshot signals whose presence demands a snapshot_source label.
-#: Mirrors cloud core/conformance.py _RISK_SNAPSHOT_NUMERIC_KEYS.
-_RISK_SNAPSHOT_NUMERIC_KEYS: tuple[str, ...] = (
-    "epss",
-    "cvss",
-    "cvss_vector",
-    "kev_listed",
-)
-
-#: Canonical `incident_class` vocabulary under DORA Annex II field 3.23.
-#: Cloud rejects anything outside this set for receipts bound to DORA.
-DORA_INCIDENT_CLASS_NAMESPACE: frozenset[str] = frozenset(
-    {
-        "cybersecurity_related",
-        "process_failure",
-        "system_failure",
-        "external_event",
-        "payment_related",
-        "other",
-    }
-)
-
-#: HIPAA Security Rule incident_class vocabulary (45 CFR 164.304).
-HIPAA_INCIDENT_CLASS_NAMESPACE: frozenset[str] = frozenset({"hipaa_security_incident"})
-
-#: Union of every canonical incident_class token the SDK accepts.
-INCIDENT_CLASS_NAMESPACE: frozenset[str] = (
-    DORA_INCIDENT_CLASS_NAMESPACE | HIPAA_INCIDENT_CLASS_NAMESPACE
-)
-
-#: Sandbox-state enum: {enabled, disabled, unavailable}.
-SANDBOX_STATE_NAMESPACE: frozenset[str] = frozenset({"enabled", "disabled", "unavailable"})
-
-#: Durable-anchoring witnesses Asqav ships; the cloud `witness_policy` accepts
-#: only this set (`rekor` is rejected). Mirrors the governance.json contract.
-WITNESS_NAMESPACE: frozenset[str] = frozenset({"rfc3161", "opentimestamps"})
-
-#: Producer-side `capture_topology` mirrored from the cloud SignRequest Literal.
-#: ADVISORY: the server stamps the authoritative value from the ingress route.
-CAPTURE_TOPOLOGY_NAMESPACE: frozenset[str] = frozenset(
-    {
-        "in_process_sdk",
-        "network_proxy",
-        "browser_extension",
-        "mcp_proxy",
-        "passive_telemetry",
-        "github_sha_pull",
-    }
-)
-
-#: Internal `policy_decision` vocabulary; `none` is the lifecycle opt-out
-#: gated to receipt_type startswith `protectmcp:lifecycle`.
-PolicyDecision = Literal["permit", "deny", "rate_limit", "none"]
-
-#: Wire-shape `decision` vocabulary; `observation` is reserved to lifecycle
-#: receipts emitted under `policy_decision="none"`.
-Decision = Literal["allow", "deny", "rate_limit", "observation"]
-
-#: Capture-topology vocabulary as a Literal for typed callers.
-CaptureTopology = Literal[
-    "in_process_sdk",
-    "network_proxy",
-    "browser_extension",
-    "mcp_proxy",
-    "passive_telemetry",
-    "github_sha_pull",
-]
-
 # Verifier rejects receipts further than this from the wall clock.
 SKEW_BOUND_SECONDS: int = 300
-
-#: vocabulary | wire `{allow, deny, rate_limit, observation}` keyed by
-#: internal `{permit, allow, deny, rate_limit, none}`. Unknown -> "deny".
-DECISION_MAP: dict[str, str] = {
-    "permit": "allow",
-    "allow": "allow",
-    "deny": "deny",
-    "rate_limit": "rate_limit",
-    "none": "observation",
-}
-
-
-def _map_policy_decision_to_decision(policy_decision: str | None) -> str:
-    """Translate internal `policy_decision` to spec-shape `decision`.
-
-    Used when emitting compliance receipts. Falls back to "deny" so a
-    misconfigured caller never publishes an out-of-vocabulary token.
-    """
-    return DECISION_MAP.get((policy_decision or "").lower(), "deny")
-
-
-    # Read a string ``key`` from the sign response ``payload``, else None.
-def _payload_field(data: dict[str, Any], key: str) -> str | None:
-    payload = data.get("payload")
-    if not isinstance(payload, dict):
-        return None
-    value = payload.get(key)
-    return value if isinstance(value, str) else None
-
-
-    # Top-level ``action_ref`` wins; compliance-mode clouds nest it in payload.
-def _resolve_action_ref(data: dict[str, Any]) -> str | None:
-    top = data.get("action_ref")
-    if top is not None:
-        return top
-    return _payload_field(data, "action_ref")
-
-
-    # Top-level casing wins; fall back to the copy nested under payload.
-def _resolve_previous_receipt_hash(data: dict[str, Any]) -> str | None:
-    return (
-        data.get("previousReceiptHash")
-        or data.get("previous_receipt_hash")
-        or _payload_field(data, "previousReceiptHash")
-        or _payload_field(data, "previous_receipt_hash")
-    )
-
-
-#: REQUIRED fields on a Compliance Receipt envelope (wire form): ``type``
-#: discriminator, ``decision`` verdict. Used by `verify_compliance_receipt`.
-_COMPLIANCE_REQUIRED_FIELDS: tuple[str, ...] = (
-    "type",
-    "issuer_id",
-    "agent_id",
-    "action_ref",
-    "payload_digest",
-    "policy_digest",
-    "previousReceiptHash",
-    "decision",
-    "issued_at",
-)
-
 
 @dataclass
 class SignatureResponse:
@@ -576,609 +314,6 @@ class SignatureResponse:
         anchors land.
         """
         return self.anchors
-
-
-    # Response from session operations.
-@dataclass
-class SessionResponse:
-
-    session_id: str
-    agent_id: str
-    status: str
-    started_at: str  # ISO datetime string
-    ended_at: str | None = None
-
-
-@dataclass
-class SDTokenResponse:
-    """Response from SD-JWT token issuance (Enterprise tier).
-
-    SD-JWT tokens allow selective disclosure of claims to external services.
-    Use present() to create a proof with only specific claims revealed.
-    """
-
-    token: str  # Full SD-JWT with all disclosures
-    jwt: str  # Just the signed JWT part
-    disclosures: dict[str, str]  # claim_name -> encoded disclosure
-    expires_at: float
-
-    def present(self, disclose: list[str]) -> str:
-        """Create a presentation with only specified claims disclosed.
-
-        Args:
-            disclose: List of claim names to reveal.
-
-        Returns:
-            SD-JWT string with only specified disclosures.
-
-        Example:
-            # Full token has: role, org, capabilities
-            # Present only role to partner:
-            proof = sd_token.present(["role"])
-        """
-        parts = [self.jwt]
-        for claim_name in disclose:
-            if claim_name in self.disclosures:
-                parts.append(self.disclosures[claim_name])
-        return "~".join(parts) + "~"
-
-        # Return full SD-JWT with all disclosures.
-    def full(self) -> str:
-        return self.token
-
-
-    # Agent identity certificate.
-@dataclass
-class CertificateResponse:
-
-    agent_id: str
-    agent_name: str
-    algorithm: str
-    public_key_pem: str
-    key_id: str
-    created_at: float
-    is_revoked: bool
-
-
-@dataclass
-class VerificationDetail:
-    """Granular per-axis verification outcome, optional on the response.
-    `validation_label` is the cloud verdict; IETF sub-axes need compliance."""
-
-    signer_key_match: bool
-    signature_valid: bool
-    algorithm_match: bool
-    agent_active: bool
-    validation_label: str
-    signed_at_skew_seconds: float | None = None
-    chain_valid: bool | None = None
-    anchor_valid_ots: bool | None = None
-    anchor_valid_rfc3161: bool | None = None
-    anchor_status_ots: str | None = None
-    anchor_status_rfc3161: str | None = None
-    anchor_independent_rfc3161: str | None = None
-    missing_fields: list[str] | None = None
-    policy_digest_resolved: bool | None = None
-    duplicate_emission_candidate: bool | None = None
-    regimes_satisfied: list[str] = field(default_factory=list)
-
-
-@dataclass
-class ExecutionEvidence:
-    """Execution-evidence projection on a verification response.
-    `label`: result_bound, digest_present, none_by_design or absent."""
-
-    present: bool
-    label: str
-    result_digest: str | None = None
-    result_bound: bool = False
-    none_by_design: bool = False
-
-
-@dataclass
-class BitcoinAnchorStatus:
-    """Anchor attestation state on a verification response.
-    `status`: none, pending, confirmed or failed."""
-
-    status: str
-    anchor_tx_ref: str | None = None
-    anchor_block_height: int | None = None
-
-
-@dataclass
-class VerificationResponse:
-    """Public verification response; `verified` is signature-only.
-    Anchor outcome is on `bitcoin_anchor`; IETF fields need compliance mode."""
-
-    signature_id: str
-    agent_id: str
-    agent_name: str
-    action_id: str
-    action_type: str
-    payload: dict[str, Any] | None
-    signature: str
-    algorithm: str
-    signed_at: float
-    verified: bool
-    verification_url: str
-    verification_detail: VerificationDetail | None = None
-    execution_evidence: ExecutionEvidence | None = None
-    type: str = "signature"
-    bitcoin_anchor: BitcoinAnchorStatus | None = None
-    signature_envelope: dict[str, str] | None = None
-    anchors: list[dict[str, Any]] | None = None
-    algorithm_registry_version: str | None = None
-
-
-    # Signed action from a session.
-@dataclass
-class SignedActionResponse:
-
-    signature_id: str
-    agent_id: str
-    action_id: str
-    action_type: str
-    payload: dict[str, Any] | None
-    algorithm: str
-    signed_at: float
-    signature_preview: str
-    verification_url: str
-
-
-    # Details of a single entity signature within a signing session.
-@dataclass
-class SignatureDetail:
-
-    entity_id: str
-    entity_name: str
-    entity_class: str
-    signed_at: str
-
-
-    # Response from signing session operations.
-@dataclass
-class SigningSessionResponse:
-
-    session_id: str
-    config_id: str
-    agent_id: str
-    action_type: str
-    action_params: dict[str, Any] | None
-    approvals_required: int
-    signatures_collected: int
-    status: str
-    signatures: list[SignatureDetail]
-    policy_attestation_hash: str | None
-    created_at: str
-    expires_at: str
-    resolved_at: str | None = None
-
-
-    # Response from signing approval operation.
-@dataclass
-class ApprovalResponse:
-
-    session_id: str
-    entity_id: str
-    signatures_collected: int
-    approvals_required: int
-    status: str
-    approved: bool
-
-
-    # Response from signing group operations.
-@dataclass
-class SigningGroupResponse:
-
-    id: str
-    agent_id: str
-    min_approvals: int
-    total_shares: int
-    is_active: bool
-    created_at: str
-    updated_at: str | None = None
-
-
-    # Response from signing entity operations.
-@dataclass
-class SigningEntityResponse:
-
-    id: str
-    config_id: str
-    entity_class: str
-    label: str
-    is_active: bool
-    created_at: str
-
-
-    # Response from group keypair operations.
-@dataclass
-class GroupKeypairResponse:
-
-    id: str
-    config_id: str
-    public_key_hex: str
-    min_approvals: int
-    total_shares: int
-    created_at: str
-    status: str = "active"
-
-
-    # Response from group signing operation.
-@dataclass
-class GroupSignResponse:
-
-    signature_hex: str
-    message_hex: str
-    keypair_id: str
-    verified: bool
-    audit_record_id: str | None = None
-
-
-    # Response from risk rule operations.
-@dataclass
-class RiskRuleResponse:
-
-    id: str
-    name: str
-    action_pattern: str
-    risk_level: str
-    approval_override: int | None
-    priority: int
-    entity_weights: dict[str, float] | None = None
-    time_schedule: dict[str, Any] | None = None
-    created_at: str = ""
-
-
-    # Response from delegation operations.
-@dataclass
-class DelegationResponse:
-
-    id: str
-    config_id: str
-    delegator_entity_id: str
-    delegate_entity_id: str
-    expires_at: str
-    is_active: bool
-    created_at: str
-
-
-    # Response from key share refresh operation.
-@dataclass
-class KeyRefreshResponse:
-
-    keypair_id: str
-    refreshed_at: str
-    delegations_invalidated: int
-
-
-    # Response from key share recovery operation.
-@dataclass
-class ShareRecoveryResponse:
-
-    keypair_id: str
-    recovered_entity_id: str
-    recovered_at: str
-
-
-@dataclass
-class PreflightResult:
-    """Result of a pre-flight check of agent status and policy.
-    ``cleared`` lets the agent proceed; ``checks_complete`` False: an error."""
-
-    cleared: bool
-    agent_active: bool
-    policy_allowed: bool
-    reasons: list[str]
-    explanation: str = ""
-    checks_complete: bool = True
-
-
-@dataclass
-class Span:
-    """A single traced operation.
-
-    Spans track the duration and context of operations. When ended,
-    they are signed server-side with ML-DSA for cryptographic proof.
-    """
-
-    span_id: str
-    name: str
-    start_time: float
-    attributes: dict[str, Any] = field(default_factory=dict)
-    parent_id: str | None = None
-    end_time: float | None = None
-    status: str = "ok"
-    signature: str | None = None
-
-        # Add an attribute to the span.
-    def set_attribute(self, key: str, value: Any) -> None:
-        self.attributes[key] = value
-
-        # Set span status (ok, error).
-    def set_status(self, status: str) -> None:
-        self.status = status
-
-
-# Global tracer state
-_current_span: Span | None = None
-_span_stack: list[Span] = []
-_completed_spans: list[Span] = []
-_otel_endpoint: str | None = None
-
-
-@contextmanager
-def span(
-    name: str,
-    attributes: dict[str, Any] | None = None,
-) -> Generator[Span, None, None]:
-    """Create a traced span with automatic signing.
-    Example: ``with asqav.span("api:openai", {"model": "gpt-4"}) as s:``"""
-    global _current_span, _span_stack
-
-    span_obj = Span(
-        span_id=str(uuid.uuid4()),
-        name=name,
-        start_time=time.time(),
-        attributes=attributes or {},
-        parent_id=_current_span.span_id if _current_span else None,
-    )
-
-    _span_stack.append(span_obj)
-    _current_span = span_obj
-
-    try:
-        yield span_obj
-        span_obj.status = "ok"
-    except Exception as e:
-        span_obj.status = "error"
-        span_obj.set_attribute("error.message", str(e))
-        span_obj.set_attribute("error.type", type(e).__name__)
-        raise
-    finally:
-        span_obj.end_time = time.time()
-        _span_stack.pop()
-        _current_span = _span_stack[-1] if _span_stack else None
-
-        # Sign the span via API
-        try:
-            agent = get_agent()
-            result = agent.sign(
-                action_type=f"span:{name}",
-                context={
-                    "span_id": span_obj.span_id,
-                    "parent_id": span_obj.parent_id,
-                    "start_time": span_obj.start_time,
-                    "end_time": span_obj.end_time,
-                    "duration_ms": (span_obj.end_time - span_obj.start_time) * 1000,
-                    "status": span_obj.status,
-                    "attributes": span_obj.attributes,
-                },
-                result=dict(span_obj.attributes),
-            )
-            span_obj.signature = result.signature
-        except Exception:
-            pass  # Don't fail user code if signing fails
-
-        # Add to completed spans for OTEL export
-        _completed_spans.append(span_obj)
-
-
-    # Get the active span, if any.
-def get_current_span() -> Span | None:
-    return _current_span
-
-
-def configure_otel(endpoint: str | None = None) -> None:
-    """Configure OpenTelemetry export.
-
-    Args:
-        endpoint: OTEL collector endpoint (e.g., "http://localhost:4318/v1/traces").
-                  Set to None to disable export.
-
-    Example:
-        asqav.configure_otel("http://localhost:4318/v1/traces")
-    """
-    global _otel_endpoint
-    _otel_endpoint = endpoint
-
-
-    # Convert a Span to OTEL format.
-def span_to_otel(s: Span) -> dict[str, Any]:
-    return {
-        "traceId": s.span_id.replace("-", "")[:32].ljust(32, "0"),
-        "spanId": s.span_id.replace("-", "")[:16],
-        "parentSpanId": s.parent_id.replace("-", "")[:16] if s.parent_id else None,
-        "name": s.name,
-        "kind": 1,  # INTERNAL
-        "startTimeUnixNano": int(s.start_time * 1_000_000_000),
-        "endTimeUnixNano": int((s.end_time or s.start_time) * 1_000_000_000),
-        "attributes": [
-            {"key": k, "value": {"stringValue": str(v)}} for k, v in s.attributes.items()
-        ]
-        + (
-            [{"key": "asqav.signature", "value": {"stringValue": s.signature}}]
-            if s.signature
-            else []
-        ),
-        "status": {"code": 1 if s.status == "ok" else 2},
-    }
-
-
-def export_spans() -> list[dict[str, Any]]:
-    """Export completed spans in OTEL format.
-
-    Returns:
-        List of spans in OTEL format.
-    """
-    global _completed_spans
-    spans = [span_to_otel(s) for s in _completed_spans]
-    _completed_spans = []
-    return spans
-
-
-    # Flush spans to configured OTEL endpoint.
-def flush_spans() -> None:
-    global _otel_endpoint, _completed_spans
-
-    if not _otel_endpoint or not _completed_spans:
-        return
-
-    from . import __version__
-
-    spans = export_spans()
-    payload = {
-        "resourceSpans": [
-            {
-                "resource": {
-                    "attributes": [
-                        {"key": "service.name", "value": {"stringValue": "asqav"}},
-                    ]
-                },
-                "scopeSpans": [
-                    {
-                        "scope": {"name": "asqav", "version": __version__},
-                        "spans": spans,
-                    }
-                ],
-            }
-        ]
-    }
-
-    try:
-        import json
-        import urllib.request
-
-        req = urllib.request.Request(
-            _otel_endpoint,
-            data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json", "User-Agent": USER_AGENT},
-            method="POST",
-        )
-        urllib.request.urlopen(req, timeout=5)
-    except Exception:
-        pass  # Don't fail on export errors
-
-
-def _compute_action_ref(action_type: str, context: dict[str, Any] | None) -> str:
-    """Client-side ``sha256:<hex>`` of the canonical Action object.
-
-    The Action shape mirrors `core/canonical.py:hash_action` on the cloud
-    so the SDK and cloud agree byte-for-byte under JCS encoding.
-    """
-    from .canonicalize import canonicalize_action
-
-    return "sha256:" + hashlib.sha256(canonicalize_action(action_type, context)).hexdigest()
-
-
-#: Wire format for caller-supplied sha256 digest fields (matches helper output).
-_SHA256_HEX_RE = re.compile(r"^sha256:[a-f0-9]{64}$")
-
-#: Bare 64-hex, no prefix; the controls_evaluated quorum.attestation_hash form.
-_BARE_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
-
-#: Server-built control keys an enumerable controls_evaluated block may carry;
-#: mirrors the cloud false_control_attestation_guard allowlist (conformance.py).
-_ALLOWED_CONTROL_KEYS: frozenset[str] = frozenset(
-    {
-        "emergency_halt",
-        "delegation_scope",
-        "quorum",
-        "mandate",
-        "policy",
-        "content_scan",
-        "result",
-    }
-)
-
-
-#: Wire format for ``tool_fingerprint``: 32 bare lowercase hex (SHA-256[:32]);
-#: unlike the ``sha256:<hex>`` form of the other digests.
-_TOOL_FINGERPRINT_RE = re.compile(r"^[0-9a-f]{32}$")
-
-
-class RiskSnapshot(TypedDict, total=False):
-    """Producer-asserted snapshot of third-party risk signals.
-    Asqav vouches for none; a numeric needs ``snapshot_source``."""
-
-    #: RFC 3339 read-time of the signals (REQUIRED). Producer-asserted.
-    snapshot_at: str
-    #: Free-text label naming the source. REQUIRED when any numeric is present.
-    snapshot_source: str
-    #: EPSS probability as a STRING (floats rejected). Producer-asserted.
-    epss: str
-    #: CVSS base score as a STRING. Producer-asserted; not computed by Asqav.
-    cvss: str
-    #: CVSS vector string snapshot. Producer-asserted; not parsed by Asqav.
-    cvss_vector: str
-    #: Whether the CVE was in the named KEV catalog at snapshot_at, as observed.
-    kev_listed: bool
-    #: CVE ids the snapshot pertains to; non-empty list[str], entries <= 128.
-    cve_ids: list[str]
-
-
-class AuthoredBy(TypedDict, total=False):
-    """Producer-asserted author of a code change (cloud AuthoredBy model).
-    A ``model_id`` / ``model_version`` requires ``attestation_source``."""
-
-    #: Human author identity (free-text id / email). Producer-asserted.
-    human_id: str
-    #: Model id if a model authored the change. Requires attestation_source.
-    model_id: str
-    #: Model version if a model authored the change; needs attestation_source.
-    model_version: str
-    #: Free-text label naming where the machine-authorship claim came from.
-    #: REQUIRED when model_id / model_version is present.
-    attestation_source: str
-
-
-def _validate_risk_snapshot(rs: Any) -> None:
-    """Mirror cloud RiskSnapshot._validate_snapshot_shape + _check_risk_snapshot.
-    Rejects a malformed snapshot, numeric without source, or bad cve_ids."""
-    if not isinstance(rs, dict):
-        raise AsqavValidationError(
-            "risk_snapshot_not_object: risk_snapshot must be an object of "
-            f"producer-asserted snapshot signals (got: {repr(rs)[:64]})",
-            docs_url=RISK_ACCEPTANCE_DOCS_URL,
-        )
-    if not rs.get("snapshot_at") or not isinstance(rs.get("snapshot_at"), str):
-        raise AsqavValidationError(
-            "risk_snapshot_missing_snapshot_at: snapshot_at (RFC 3339 string) "
-            "is required on a risk_snapshot.",
-            docs_url=RISK_ACCEPTANCE_DOCS_URL,
-        )
-    source = rs.get("snapshot_source")
-    numeric_present = any(rs.get(k) is not None for k in _RISK_SNAPSHOT_NUMERIC_KEYS)
-    if numeric_present and (not isinstance(source, str) or not source):
-        raise AsqavValidationError(
-            "risk_snapshot_numeric_requires_snapshot_source: a populated "
-            "risk_snapshot signal requires snapshot_source so the value is "
-            "never read as an Asqav-derived score.",
-            docs_url=RISK_ACCEPTANCE_DOCS_URL,
-        )
-    for _k in ("epss", "cvss"):
-        _v = rs.get(_k)
-        if _v is not None and not isinstance(_v, str):
-            raise AsqavValidationError(
-                f"risk_snapshot_{_k}_not_string: numeric risk signals MUST be "
-                f"strings on the wire, never floats (got: {repr(_v)[:64]}).",
-                docs_url=RISK_ACCEPTANCE_DOCS_URL,
-            )
-    cve_ids = rs.get("cve_ids")
-    if cve_ids is not None:
-        if not isinstance(cve_ids, list) or len(cve_ids) == 0:
-            raise AsqavValidationError(
-                "risk_snapshot_cve_ids_must_be_non_empty_list: pass a "
-                "non-empty list of strings or omit cve_ids.",
-                docs_url=RISK_ACCEPTANCE_DOCS_URL,
-            )
-        for _entry in cve_ids:
-            if not isinstance(_entry, str) or not _entry or len(_entry) > 128:
-                raise AsqavValidationError(
-                    "risk_snapshot_cve_ids_entry_invalid: each cve id must be "
-                    f"a non-empty string of length <= 128 (got: {repr(_entry)[:64]}).",
-                    docs_url=RISK_ACCEPTANCE_DOCS_URL,
-                )
 
 
 #: The risk-acceptance signed-payload extension fields, fenced to the
@@ -1271,31 +406,6 @@ def _validate_risk_acceptance(
 _CODE_AUTHORSHIP_RECEIPT_TYPE = "protectmcp:lifecycle:code_authorship"
 
 
-def _validate_counterparty_binding(
-    binding: "CounterpartyBinding | dict[str, Any] | None",
-    *,
-    receipt_type: str | None,
-    compliance_mode: bool,
-) -> dict[str, Any] | None:
-    """Fence the binding to compliance acknowledgment receipts and return its wire form.
-
-    Mirrors the cloud's admit_counterparty_binding: a binding outside an
-    acknowledgment, or without compliance_mode, is refused before any network call.
-    """
-    if binding is None:
-        return None
-    if receipt_type != ACKNOWLEDGMENT_RECEIPT_TYPE or not compliance_mode:
-        raise ValueError(
-            "counterparty_binding_requires_acknowledgment_receipt: counterparty_binding is "
-            f"only valid on receipt_type={ACKNOWLEDGMENT_RECEIPT_TYPE} with compliance_mode=True."
-        )
-    wire = binding.to_wire() if isinstance(binding, CounterpartyBinding) else dict(binding)
-    for key in ("envelope_hash", "receipt_ref"):
-        if not isinstance(wire.get(key), str) or not wire[key]:
-            raise ValueError(f"counterparty_binding_malformed: {key} must be a non-empty string.")
-    return wire
-
-
 def _validate_code_authorship(
     *,
     receipt_type: str | None,
@@ -1373,59 +483,6 @@ def _validate_code_authorship(
             )
 
 
-def _validate_authored_by(ab: Any) -> None:
-    """Mirror the cloud AuthoredBy validator (routes/agents.py).
-    A model_id / model_version requires authored_by.attestation_source."""
-    if not isinstance(ab, dict):
-        raise AsqavValidationError(
-            "authored_by_not_object: authored_by must be an object naming the "
-            f"producer-asserted author of the change (got: {repr(ab)[:64]}).",
-            docs_url=CODE_AUTHORSHIP_DOCS_URL,
-        )
-    model_present = bool(ab.get("model_id")) or bool(ab.get("model_version"))
-    source = ab.get("attestation_source")
-    if model_present and (not isinstance(source, str) or not source):
-        raise AsqavValidationError(
-            "authored_by_model_requires_attestation_source: a populated "
-            "model_id / model_version requires authored_by.attestation_source "
-            "so the machine-authorship claim is never read as Asqav-verified.",
-            docs_url=CODE_AUTHORSHIP_DOCS_URL,
-        )
-
-
-def _compute_tool_fingerprint(tool_name: str, tool_schema: dict[str, Any] | None) -> str:
-    """32-hex fingerprint over `{tool_name, schema}` (NSA CSI 6030316-26).
-    First 32 hex chars of the JCS (RFC 8785) SHA-256, bare."""
-    from .canonicalize import canonicalize
-
-    payload = canonicalize({"tool_name": tool_name, "schema": tool_schema or {}})
-    return hashlib.sha256(payload).hexdigest()[:32]
-
-
-def _compute_config_manifest_digest(manifest: dict[str, Any]) -> str:
-    """Compute the canonical ``sha256:<hex>`` of a configuration manifest.
-    JCS (RFC 8785) digest; NSA CSI 6030316-26 audits capability creep."""
-    from .canonicalize import canonicalize
-
-    return "sha256:" + hashlib.sha256(canonicalize(manifest)).hexdigest()
-
-
-def _compute_cve_inventory_digest(cve_list: list[Any]) -> str:
-    """Compute the canonical ``sha256:<hex>`` of a CVE inventory snapshot.
-    JCS (RFC 8785) digest of the record list (NSA CSI 6030316-26)."""
-    from .canonicalize import canonicalize
-
-    return "sha256:" + hashlib.sha256(canonicalize(cve_list)).hexdigest()
-
-
-def _generate_nonce() -> str:
-    """Return a 24-hex-char (12 random bytes) value for the `nonce` wire field.
-    The cloud answers 409 while a live signature holds it; expiry frees it."""
-    import secrets as _secrets
-
-    return _secrets.token_hex(12)
-
-
 def _build_sign_body(
     *,
     action_type: str,
@@ -1441,7 +498,7 @@ def _build_sign_body(
     whitelisted metadata bag.
     """
     if _mode == "hash-only":
-        from .canonicalize import canonicalize_action
+        from ..canonicalize import canonicalize_action
 
         canonical_bytes = canonicalize_action(action_type, context)
         payload_size = len(canonical_bytes)
@@ -1550,7 +607,7 @@ def _prepare_sign_context(
 
     # Dispatch before-hooks (fail-open).
     try:
-        from . import hooks as _hooks_mod
+        from .. import hooks as _hooks_mod
 
         context = _hooks_mod._dispatch_before(action_type, dict(context) if context else {})
     except Exception:
@@ -1559,7 +616,7 @@ def _prepare_sign_context(
     # Opt-in schema validation + normalization (criterion 328).
     # Runs after hook dispatch so the validated form is what gets signed.
     if context_schema is not None:
-        from ._schema import normalize_context, validate_context_schema
+        from .._schema import normalize_context, validate_context_schema
 
         if callable(context_schema) and not isinstance(context_schema, dict):
             # User-supplied validator function (e.g. wrapping jsonschema).
@@ -1569,7 +626,7 @@ def _prepare_sign_context(
         context = normalize_context(context)
 
     # Pluggable detector gate (331), fail-closed; after normalize.
-    from ._detectors import run_detectors
+    from .._detectors import run_detectors
 
     _detector_records = run_detectors(action_type, context)
     if _detector_records:
@@ -1589,7 +646,7 @@ def _digest_result_value(result: bytes | str | dict | list) -> str:
     elif isinstance(result, str):
         raw = result.encode("utf-8")
     else:
-        from .canonicalize import canonicalize
+        from ..canonicalize import canonicalize
 
         try:
             raw = canonicalize(result)
@@ -2493,7 +1550,7 @@ class Agent:
 
         # Dispatch after-hooks (fail-open).
         try:
-            from . import hooks as _hooks_mod
+            from .. import hooks as _hooks_mod
 
             _hooks_mod._dispatch_after(action_type, response)
         except Exception:
@@ -2964,7 +2021,7 @@ class Agent:
             token = agent.create_scope_token(["sql-read", "http-external"])
             requests.get(url, headers=token.to_header())
         """
-        from .scope import create_scope_token as _create
+        from ..scope import create_scope_token as _create
 
         return _create(self, actions, ttl=ttl, metadata=metadata)
 
@@ -2976,7 +2033,7 @@ class Agent:
         result: Any | None = None,
     ) -> "PhaseChain":
         """Three-phase flow; result binds a digest on :execution (787)."""
-        from .phases import sign_with_phases
+        from ..phases import sign_with_phases
 
         return sign_with_phases(self, action_type, context, trace_id, result=result)
 
@@ -3007,11 +2064,6 @@ def health_check() -> dict[str, Any]:
     """Check API connectivity and return the server status dict.
     Raises AuthenticationError (bad key) or APIError (unreachable)."""
     return _get("/health")
-
-
-    # Generate a unique trace ID for correlating actions across a workflow.
-def generate_trace_id() -> str:
-    return uuid.uuid4().hex
 
 
 def emergency_halt(org_id: str, reason: str = "emergency") -> dict:
@@ -3089,7 +2141,7 @@ def init(
     _explicit_api_base = base_url or _explicit_api_base
     _api_base = resolve_api_base(_explicit_api_base)
 
-    from ._mode import _resolve_mode
+    from .._mode import _resolve_mode
 
     _mode = _resolve_mode(
         api_base_url=_api_base,
@@ -3266,7 +2318,7 @@ def _urllib_request(
         request = urllib.request.Request(url, data=body, headers=headers, method=method)
         with urllib.request.urlopen(request, timeout=_timeout) as response:
             # Strict ingest (419): a duplicated member name fails the response.
-            from . import strict_json
+            from .. import strict_json
 
             try:
                 result: dict[str, Any] = strict_json.loads(response.read().decode("utf-8"))
@@ -3537,7 +2589,7 @@ def _fetch_verification(url: str) -> dict[str, Any]:
     import urllib.error
     import urllib.request
 
-    from . import strict_json
+    from .. import strict_json
 
     try:
         req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
@@ -3701,7 +2753,7 @@ def verify(signature_id: str) -> dict[str, Any]:
         assert result["verified"]
         print(result["agent_id"], result["chain_hash"])
     """
-    from ._jcs import canonical_json
+    from .._jcs import canonical_json
 
     resp = verify_signature(signature_id)
     payload = resp.payload if isinstance(resp.payload, dict) else None
@@ -3764,8 +2816,8 @@ def _compliance_receipt_skew(signed: dict[str, Any], now: float | None, errors: 
 def _compliance_receipt_chain(
     envelope: dict[str, Any], predecessor_envelope: dict[str, Any] | None, errors: list[str],
 ) -> bool:
-    from ._jcs import canonical_json
-    from .replay import FIRST_RECEIPT_SEED
+    from .._jcs import canonical_json
+    from ..replay import FIRST_RECEIPT_SEED
     # 4. Chain link rederives. Only checked when caller supplies the
     # predecessor envelope; first-record seeds skip this.
     chain_link_rederives = True
@@ -3797,7 +2849,7 @@ def _compliance_receipt_counterparty(
     payload_obj = envelope.get("payload") if isinstance(envelope.get("payload"), dict) else envelope
     has_binding = isinstance(payload_obj, dict) and "counterparty_binding" in payload_obj
     if has_binding:
-        from .counterparty import verify_counterparty_binding
+        from ..counterparty import verify_counterparty_binding
 
         binding_obj = payload_obj["counterparty_binding"]
         has_full_envelope = "payload" in envelope
@@ -4620,97 +3672,6 @@ def _parse_risk_rule(data: dict[str, Any]) -> RiskRuleResponse:
     )
 
 
-# --- Delegations ---
-
-
-def create_delegation(
-    config_id: str,
-    delegator_entity_id: str,
-    delegate_entity_id: str,
-    expires_in: int = 86400,
-) -> DelegationResponse:
-    """Create a temporary delegation between Class B entities.
-
-    Allows one entity to delegate their signing authority to another
-    with cryptographic expiry.
-
-    Args:
-        config_id: The signing group.
-        delegator_entity_id: Entity delegating their authority.
-        delegate_entity_id: Entity receiving delegated authority.
-        expires_in: Delegation duration in seconds (default 24h).
-
-    Returns:
-        DelegationResponse with delegation details.
-
-    Example:
-        delegation = asqav.create_delegation(
-            config_id="cfg_xxx",
-            delegator_entity_id="ent_alice",
-            delegate_entity_id="ent_bob",
-            expires_in=3600,  # 1 hour
-        )
-    """
-    data = _post(
-        "/signing-groups/delegations",
-        {
-            "config_id": config_id,
-            "delegator_entity_id": delegator_entity_id,
-            "delegate_entity_id": delegate_entity_id,
-            "expires_in": expires_in,
-        },
-    )
-    return _parse_delegation(data)
-
-
-def list_delegations() -> list[DelegationResponse]:
-    """List all active delegations.
-
-    Returns:
-        List of DelegationResponse.
-    """
-    data = _get("/signing-groups/delegations")
-    return [_parse_delegation(d) for d in data]
-
-
-def get_delegation(delegation_id: str) -> DelegationResponse:
-    """Get a delegation by ID.
-
-    Args:
-        delegation_id: The delegation ID.
-
-    Returns:
-        DelegationResponse.
-    """
-    data = _get(f"/signing-groups/delegations/{delegation_id}")
-    return _parse_delegation(data)
-
-
-def revoke_delegation(delegation_id: str) -> dict[str, Any]:
-    """Revoke an active delegation.
-
-    Args:
-        delegation_id: The delegation to revoke.
-
-    Returns:
-        Confirmation dict.
-    """
-    return _delete(f"/signing-groups/delegations/{delegation_id}")
-
-
-    # Parse API response into a DelegationResponse.
-def _parse_delegation(data: dict[str, Any]) -> DelegationResponse:
-    return DelegationResponse(
-        id=data["id"],
-        config_id=data["config_id"],
-        delegator_entity_id=data["delegator_entity_id"],
-        delegate_entity_id=data["delegate_entity_id"],
-        expires_at=data["expires_at"],
-        is_active=data["is_active"],
-        created_at=data["created_at"],
-    )
-
-
 # --- List Signing Sessions ---
 
 
@@ -4991,140 +3952,3 @@ def verify_attestation(attestation: dict[str, Any]) -> dict[str, Any]:
         "signatures_checked": signatures_checked,
         "all_valid": all_valid,
     }
-
-
-    # Result of a budget pre-check for an agent action.
-@dataclass
-class BudgetCheckResult:
-
-    allowed: bool
-    current_spend: float
-    limit: float
-    remaining: float
-    reason: str | None = None
-
-
-class BudgetTracker:
-    """Client-side spend tracker over signed `agent.sign()` records.
-    Tamper-evident and replayable; fails closed; the caller enforces."""
-
-    def __init__(self, agent: Agent, limit: float, currency: str = "USD"):
-        if limit < 0:
-            raise ValueError("budget limit must be non-negative")
-        self.agent = agent
-        self.limit = float(limit)
-        self.currency = currency
-        self._spend: float = 0.0
-        self._records: list[str] = []  # signature_ids
-
-    def check(self, estimated_cost: float) -> BudgetCheckResult:
-        """Check if an action with the given cost would exceed the budget.
-
-        Fails closed: negative or non-finite costs are rejected, and
-        any cost that would push cumulative spend past the limit is
-        denied.
-
-        Args:
-            estimated_cost: Expected cost of the pending action.
-
-        Returns:
-            BudgetCheckResult describing whether the action is allowed
-            and how much budget would remain after it.
-        """
-        remaining = self.limit - self._spend
-
-        # Fail closed on invalid input.
-        try:
-            cost = float(estimated_cost)
-        except (TypeError, ValueError):
-            return BudgetCheckResult(
-                allowed=False,
-                current_spend=self._spend,
-                limit=self.limit,
-                remaining=remaining,
-                reason="invalid_cost",
-            )
-
-        if cost != cost or cost in (float("inf"), float("-inf")):  # NaN or inf
-            return BudgetCheckResult(
-                allowed=False,
-                current_spend=self._spend,
-                limit=self.limit,
-                remaining=remaining,
-                reason="invalid_cost",
-            )
-
-        if cost < 0:
-            return BudgetCheckResult(
-                allowed=False,
-                current_spend=self._spend,
-                limit=self.limit,
-                remaining=remaining,
-                reason="invalid_cost",
-            )
-
-        if cost > remaining:
-            return BudgetCheckResult(
-                allowed=False,
-                current_spend=self._spend,
-                limit=self.limit,
-                remaining=remaining,
-                reason="budget_exhausted",
-            )
-
-        return BudgetCheckResult(
-            allowed=True,
-            current_spend=self._spend,
-            limit=self.limit,
-            remaining=remaining - cost,
-        )
-
-    def record(
-        self,
-        action_type: str,
-        actual_cost: float,
-        context: dict[str, Any] | None = None,
-    ) -> SignatureResponse:
-        """Record an action cost by signing it. Updates cumulative spend.
-
-        The signature payload includes the cost, currency, resulting
-        cumulative spend, and the configured limit, so the trail can
-        be independently replayed and verified.
-
-        Args:
-            action_type: Type of action being recorded (e.g. "api:openai").
-            actual_cost: Realized cost of the action.
-            context: Extra context to include in the signed payload.
-
-        Returns:
-            SignatureResponse from the underlying sign() call.
-        """
-        cost = float(actual_cost)
-        if cost != cost or cost in (float("inf"), float("-inf")) or cost < 0:
-            raise ValueError("actual_cost must be a finite non-negative number")
-
-        self._spend += cost
-
-        payload: dict[str, Any] = {
-            "cost": cost,
-            "currency": self.currency,
-            "cumulative_spend": self._spend,
-            "limit": self.limit,
-        }
-        if context:
-            payload.update(context)
-
-        sig = self.agent.sign(f"budget:{action_type}", payload, result=dict(payload))
-        self._records.append(sig.signature_id)
-        return sig
-
-        # Get current budget status.
-    def status(self) -> dict[str, Any]:
-        return {
-            "limit": self.limit,
-            "currency": self.currency,
-            "spend": self._spend,
-            "remaining": self.limit - self._spend,
-            "records": len(self._records),
-            "signature_ids": list(self._records),
-        }
