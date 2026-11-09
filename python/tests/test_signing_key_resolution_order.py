@@ -247,9 +247,11 @@ def test_public_resolvers_pick_no_sibling_on_a_shared_kid() -> None:
     ml = _ml_dsa_65()
     a_pk, b_pk = ml.keygen()[0], ml.keygen()[0]
     a, b = _key("k-a", "agt_a", a_pk), _key("k-b", "agt_b", b_pk)
+    shared_kid_revoked_pair = {"keys": [_key("k-a", "agt_a", a_pk, status="revoked"),
+                                        _key("k-b", "agt_b", b_pk)]}
     assert v.resolve_key({"keys": [a, b]}, ORG) == (None, None, None)
     assert v.resolve_key_issuer({"keys": [a, b]}, ORG) is None
-    assert v.resolve_revoked_at({"keys": [a, b]}, ORG) is None
+    assert v.resolve_revoked_at(shared_kid_revoked_pair, ORG) is None
     assert v.resolve_key_org({"keys": [a, b]}, ORG) is None
     assert v.resolve_key({"keys": [a, b]}, "k-b")[0] == base64.b64decode(b["public_key"])
     assert v.resolve_key_issuer({"keys": [a]}, ORG) == ORG
