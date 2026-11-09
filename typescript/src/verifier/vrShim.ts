@@ -871,6 +871,9 @@ const FLAT_SIGNED: ReadonlySet<string> = new Set([
   "agent_id", "org_id", "policy_digest", "policy_decision", "previous_receipt_hash",
 ]);
 
+/** Outcome fields a flat receipt signs only when the request set them. */
+export const FLAT_SIGNED_OPTIONAL: readonly string[] = ["result_digest", "action_ref", "invocation_ref"];
+
 /** Framing a flat receipt's checks read: algorithm and anchors. */
 const FLAT_FRAMING: ReadonlySet<string> = new Set(["anchors", "algorithm"]);
 
@@ -892,7 +895,7 @@ function flatSignatureUsed(raw: Record<string, unknown>, name: string): boolean 
 function flatMemberBound(
   raw: Record<string, unknown>, name: string, keyBytes: Uint8Array | null, keyKid: string | null,
 ): boolean {
-  if (FLAT_SIGNED.has(name) || FLAT_FRAMING.has(name)) return true;
+  if (FLAT_SIGNED.has(name) || FLAT_SIGNED_OPTIONAL.includes(name) || FLAT_FRAMING.has(name)) return true;
   if (name === "signature_b64" || name === "signature") return flatSignatureUsed(raw, name);
   return name === "key_id" && keyBytes !== null && typeof keyKid === "string" && raw[name] === keyKid;
 }
