@@ -16,7 +16,7 @@ from tests.test_client_threat_framework_mappings import _agent, _ok_response
     ["ASI01", "LLM01"],
 ])
 def test_agentic_invalid_identifier_rejected_before_http(value):
-    with patch("asqav.client._post", return_value=_ok_response()) as post:
+    with patch("asqav.client._transport._post", return_value=_ok_response()) as post:
         with pytest.raises(ValueError, match="owasp_agentic_top10_entry_invalid"):
             _agent().sign("api:call", {}, owasp_agentic_top10=value)
         post.assert_not_called()
@@ -32,11 +32,11 @@ def test_agentic_serialized_bytes_and_omission(monkeypatch, compliance):
         return httpx.Response(201, json=_ok_response())
 
     values = [f"ASI{n:02d}" for n in range(1, 11)] + ["ASI01"]
-    monkeypatch.setattr(client, "_api_key", "asq_test_fixture")
+    monkeypatch.setattr(client._transport, "_api_key", "asq_test_fixture")
     with httpx.Client(
         base_url="https://api.example.com/api/v1", transport=httpx.MockTransport(receive)
     ) as transport:
-        monkeypatch.setattr(client, "_client", transport)
+        monkeypatch.setattr(client._transport, "_client", transport)
         _agent().sign("api:call", {}, owasp_agentic_top10=values, compliance_mode=compliance)
         _agent().sign("api:call", {}, owasp_agentic_top10=None, compliance_mode=compliance)
     assert len(requests) == 2

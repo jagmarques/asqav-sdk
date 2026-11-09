@@ -40,7 +40,7 @@ def _make_tool(name: str, forward_result: Any = "result") -> MagicMock:
 @pytest.fixture()
 def hook() -> AsqavSmolagentsHook:
     with (
-        patch("asqav.client._api_key", "sk_test"),
+        patch("asqav.client._transport._api_key", "sk_test"),
         patch("asqav.extras._base.Agent") as mock_agent_cls,
     ):
         mock_agent_cls.create.return_value = MagicMock()

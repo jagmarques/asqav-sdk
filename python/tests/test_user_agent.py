@@ -48,11 +48,11 @@ def test_urllib_request_sends_user_agent() -> None:
         return _FakeResponse(json.dumps({"ok": True}).encode())
 
     with (
-        patch.object(client, "_api_key", "sk_test"),
-        patch.object(client, "_api_base", "https://api.example.test/api/v1/"),
+        patch.object(client._transport, "_api_key", "sk_test"),
+        patch.object(client._transport, "_api_base", "https://api.example.test/api/v1/"),
         patch.object(urllib.request, "urlopen", fake_urlopen),
     ):
-        client._urllib_request("GET", "health")
+        client._transport._urllib_request("GET", "health")
 
     assert captured["ua"] == USER_AGENT
 
@@ -61,7 +61,7 @@ def test_urllib_request_sends_user_agent() -> None:
 def test_httpx_client_sends_user_agent() -> None:
     from asqav import client
 
-    if not client._HTTPX_AVAILABLE:
+    if not client._transport._HTTPX_AVAILABLE:
         import pytest
 
         pytest.skip("httpx not installed")
@@ -69,8 +69,8 @@ def test_httpx_client_sends_user_agent() -> None:
     import asqav
 
     asqav.init(api_key="sk_test_user_agent")
-    assert client._client is not None
-    assert client._client.headers["user-agent"] == USER_AGENT
+    assert client._transport._client is not None
+    assert client._transport._client.headers["user-agent"] == USER_AGENT
 
 
     # The standalone verifier's network fetch sends a real User-Agent.

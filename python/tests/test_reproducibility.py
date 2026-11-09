@@ -25,7 +25,7 @@ MOCK_SIGN_RESPONSE: dict = {
 
 
     # sign() includes _system_prompt_hash in context when provided.
-@patch("asqav.client._post")
+@patch("asqav.client._transport._post")
 def test_sign_with_system_prompt_hash(mock_post: object) -> None:
     mock_post.return_value = MOCK_SIGN_RESPONSE  # type: ignore[attr-defined]
 
@@ -45,7 +45,7 @@ def test_sign_with_system_prompt_hash(mock_post: object) -> None:
 
 
     # sign() includes _model_params in context when provided.
-@patch("asqav.client._post")
+@patch("asqav.client._transport._post")
 def test_sign_with_model_params(mock_post: object) -> None:
     mock_post.return_value = MOCK_SIGN_RESPONSE  # type: ignore[attr-defined]
 
@@ -61,7 +61,7 @@ def test_sign_with_model_params(mock_post: object) -> None:
 
 
     # sign() includes _tool_inputs_hash in context when provided.
-@patch("asqav.client._post")
+@patch("asqav.client._transport._post")
 def test_sign_with_tool_inputs_hash(mock_post: object) -> None:
     mock_post.return_value = MOCK_SIGN_RESPONSE  # type: ignore[attr-defined]
 
@@ -76,7 +76,7 @@ def test_sign_with_tool_inputs_hash(mock_post: object) -> None:
 
 
     # sign() includes all three metadata fields when all are provided.
-@patch("asqav.client._post")
+@patch("asqav.client._transport._post")
 def test_sign_with_all_metadata(mock_post: object) -> None:
     mock_post.return_value = MOCK_SIGN_RESPONSE  # type: ignore[attr-defined]
 
@@ -101,7 +101,7 @@ def test_sign_with_all_metadata(mock_post: object) -> None:
 
 
     # sign() does not add metadata keys when none are provided.
-@patch("asqav.client._post")
+@patch("asqav.client._transport._post")
 def test_sign_without_metadata_no_underscore_keys(mock_post: object) -> None:
     mock_post.return_value = MOCK_SIGN_RESPONSE  # type: ignore[attr-defined]
 
@@ -119,7 +119,7 @@ def test_sign_without_metadata_no_underscore_keys(mock_post: object) -> None:
 
 
     # sign() does not mutate the original context dict passed in.
-@patch("asqav.client._post")
+@patch("asqav.client._transport._post")
 def test_sign_metadata_does_not_mutate_original_context(mock_post: object) -> None:
     mock_post.return_value = MOCK_SIGN_RESPONSE  # type: ignore[attr-defined]
 
@@ -134,7 +134,7 @@ def test_sign_metadata_does_not_mutate_original_context(mock_post: object) -> No
 
 
     # sign() builds the context dict when context is None and metadata is given.
-@patch("asqav.client._post")
+@patch("asqav.client._transport._post")
 def test_sign_with_none_context_and_metadata(mock_post: object) -> None:
     mock_post.return_value = MOCK_SIGN_RESPONSE  # type: ignore[attr-defined]
 
@@ -152,7 +152,7 @@ def test_sign_with_none_context_and_metadata(mock_post: object) -> None:
 
 
     # sign() expands semantic pattern names to globs.
-@patch("asqav.client._post")
+@patch("asqav.client._transport._post")
 def test_sign_resolves_semantic_pattern(mock_post: object) -> None:
     mock_post.return_value = MOCK_SIGN_RESPONSE  # type: ignore[attr-defined]
 
@@ -167,7 +167,7 @@ def test_sign_resolves_semantic_pattern(mock_post: object) -> None:
 
 
     # sign() passes through action types that are not semantic patterns.
-@patch("asqav.client._post")
+@patch("asqav.client._transport._post")
 def test_sign_passes_through_unknown_pattern(mock_post: object) -> None:
     mock_post.return_value = MOCK_SIGN_RESPONSE  # type: ignore[attr-defined]
 

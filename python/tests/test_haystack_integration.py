@@ -48,7 +48,7 @@ MOCK_SIGN_RESPONSE: dict = {
 
     # Create a component with mocked Agent.
 def _make_component() -> AsqavComponent:
-    with patch("asqav.client._api_key", "sk_test"), \
+    with patch("asqav.client._transport._api_key", "sk_test"), \
          patch("asqav.extras._base.Agent") as mock_agent_cls:
         mock_agent_cls.create.return_value = MagicMock()
         return AsqavComponent(agent_name="test-pipeline")

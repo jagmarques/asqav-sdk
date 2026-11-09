@@ -80,15 +80,15 @@ def _mock_patch_side_effect(path: str, data: dict) -> dict:
 
     # Reset the global agent between tests.
 def _reset_global_agent() -> None:
-    asqav_client._global_agent = None
+    asqav_client._agents._global_agent = None
 
 
 # === Tests ===
 
 
     # @asqav.sign on sync function signs call and result.
-@patch("asqav.client._patch", side_effect=_mock_patch_side_effect)
-@patch("asqav.client._post", side_effect=_mock_post_side_effect)
+@patch("asqav.client._transport._patch", side_effect=_mock_patch_side_effect)
+@patch("asqav.client._transport._post", side_effect=_mock_post_side_effect)
 def test_sign_decorator_sync(mock_post: MagicMock, mock_patch: MagicMock) -> None:
     _reset_global_agent()
 
@@ -113,12 +113,12 @@ def test_sign_decorator_sync(mock_post: MagicMock, mock_patch: MagicMock) -> Non
     result_args = mock_post.call_args_list[2]
     assert result_args[0][1]["action_type"] == "function:result"
     assert result_args[0][1]["context"]["success"] is True
-    assert result_args[0][1]["result_digest"] == asqav_client._digest_result_value(5)
+    assert result_args[0][1]["result_digest"] == asqav_client._sign_body._digest_result_value(5)
 
 
     # @asqav.sign on async function works with asyncio.run().
-@patch("asqav.client._patch", side_effect=_mock_patch_side_effect)
-@patch("asqav.client._post", side_effect=_mock_post_side_effect)
+@patch("asqav.client._transport._patch", side_effect=_mock_patch_side_effect)
+@patch("asqav.client._transport._post", side_effect=_mock_post_side_effect)
 def test_sign_decorator_async(mock_post: MagicMock, mock_patch: MagicMock) -> None:
     _reset_global_agent()
 
@@ -139,8 +139,8 @@ def test_sign_decorator_async(mock_post: MagicMock, mock_patch: MagicMock) -> No
 
 
     # @asqav.sign(action_type="deploy:prod") overrides default action type.
-@patch("asqav.client._patch", side_effect=_mock_patch_side_effect)
-@patch("asqav.client._post", side_effect=_mock_post_side_effect)
+@patch("asqav.client._transport._patch", side_effect=_mock_patch_side_effect)
+@patch("asqav.client._transport._post", side_effect=_mock_post_side_effect)
 def test_sign_decorator_with_action_type(mock_post: MagicMock, mock_patch: MagicMock) -> None:
     _reset_global_agent()
 
@@ -166,8 +166,8 @@ def _mock_post_blocks_sign(path: str, data: dict) -> dict:
     return {}
 
 
-@patch("asqav.client._patch", side_effect=_mock_patch_side_effect)
-@patch("asqav.client._post", side_effect=_mock_post_blocks_sign)
+@patch("asqav.client._transport._patch", side_effect=_mock_patch_side_effect)
+@patch("asqav.client._transport._post", side_effect=_mock_post_blocks_sign)
 def test_sign_decorator_fail_closed_on_blocked_sign(
     mock_post: MagicMock, mock_patch: MagicMock
 ) -> None:
@@ -196,8 +196,8 @@ def test_sign_decorator_fail_closed_on_blocked_sign(
 
 
     # Decorated function that raises propagates exception and signs error.
-@patch("asqav.client._patch", side_effect=_mock_patch_side_effect)
-@patch("asqav.client._post", side_effect=_mock_post_side_effect)
+@patch("asqav.client._transport._patch", side_effect=_mock_patch_side_effect)
+@patch("asqav.client._transport._post", side_effect=_mock_post_side_effect)
 def test_sign_decorator_reraises_exception(mock_post: MagicMock, mock_patch: MagicMock) -> None:
     _reset_global_agent()
 
@@ -217,14 +217,14 @@ def test_sign_decorator_reraises_exception(mock_post: MagicMock, mock_patch: Mag
     error_args = mock_post.call_args_list[2]
     assert error_args[0][1]["action_type"] == "function:error"
     assert "something broke" in error_args[0][1]["context"]["error"]
-    assert error_args[0][1]["result_digest"] == asqav_client._digest_result_value(
+    assert error_args[0][1]["result_digest"] == asqav_client._sign_body._digest_result_value(
         "something broke"
     )
 
 
     # with asqav.session() as s: s.sign(...) groups signs under a session.
-@patch("asqav.client._patch", side_effect=_mock_patch_side_effect)
-@patch("asqav.client._post", side_effect=_mock_post_side_effect)
+@patch("asqav.client._transport._patch", side_effect=_mock_patch_side_effect)
+@patch("asqav.client._transport._post", side_effect=_mock_post_side_effect)
 def test_session_context_manager(mock_post: MagicMock, mock_patch: MagicMock) -> None:
     _reset_global_agent()
 
@@ -247,8 +247,8 @@ def test_session_context_manager(mock_post: MagicMock, mock_patch: MagicMock) ->
 
 
     # Session that encounters an exception signs error before ending.
-@patch("asqav.client._patch", side_effect=_mock_patch_side_effect)
-@patch("asqav.client._post", side_effect=_mock_post_side_effect)
+@patch("asqav.client._transport._patch", side_effect=_mock_patch_side_effect)
+@patch("asqav.client._transport._post", side_effect=_mock_post_side_effect)
 def test_session_signs_error_on_exception(
     mock_post: MagicMock, mock_patch: MagicMock
 ) -> None:
@@ -268,7 +268,7 @@ def test_session_signs_error_on_exception(
     error_call = mock_post.call_args_list[3]
     assert error_call[0][1]["action_type"] == "session:error"
     assert "connection lost" in error_call[0][1]["context"]["error"]
-    assert error_call[0][1]["result_digest"] == asqav_client._digest_result_value(
+    assert error_call[0][1]["result_digest"] == asqav_client._sign_body._digest_result_value(
         "connection lost"
     )
 
@@ -289,8 +289,8 @@ def test_session_sign_forwards_result() -> None:
     agent.sign.assert_called_once_with("tool:run", {"tool": "search"}, result={"hits": 3})
 
 
-@patch("asqav.client._patch", side_effect=_mock_patch_side_effect)
-@patch("asqav.client._post", side_effect=_mock_post_side_effect)
+@patch("asqav.client._transport._patch", side_effect=_mock_patch_side_effect)
+@patch("asqav.client._transport._post", side_effect=_mock_post_side_effect)
 def test_session_sign_binds_result_digest(
     mock_post: MagicMock, mock_patch: MagicMock
 ) -> None:
@@ -306,13 +306,13 @@ def test_session_sign_binds_result_digest(
         c[0][1] for c in mock_post.call_args_list if "/sign" in c[0][0]
     ]
     assert sign_bodies, "session sign must hit the wire"
-    assert sign_bodies[0]["result_digest"] == asqav_client._digest_result_value(
+    assert sign_bodies[0]["result_digest"] == asqav_client._sign_body._digest_result_value(
         {"rows": 2}
     )
 
 
-@patch("asqav.client._patch", side_effect=_mock_patch_side_effect)
-@patch("asqav.client._post", side_effect=_mock_post_side_effect)
+@patch("asqav.client._transport._patch", side_effect=_mock_patch_side_effect)
+@patch("asqav.client._transport._post", side_effect=_mock_post_side_effect)
 def test_async_session_signs_error_digest(
     mock_post: MagicMock, mock_patch: MagicMock
 ) -> None:
@@ -337,7 +337,7 @@ def test_async_session_signs_error_digest(
         if c[0][1].get("action_type") == "session:error"
     ]
     assert error_bodies, "async session error must sign"
-    assert error_bodies[0]["result_digest"] == asqav_client._digest_result_value(
+    assert error_bodies[0]["result_digest"] == asqav_client._sign_body._digest_result_value(
         "async gone"
     )
 
@@ -356,8 +356,8 @@ def test_existing_secure_still_works() -> None:
 
 
     # @asqav.secure binds the function outcome as the receipt result (787).
-@patch("asqav.client._patch", side_effect=_mock_patch_side_effect)
-@patch("asqav.client._post", side_effect=_mock_post_side_effect)
+@patch("asqav.client._transport._patch", side_effect=_mock_patch_side_effect)
+@patch("asqav.client._transport._post", side_effect=_mock_post_side_effect)
 def test_secure_decorator_binds_result(mock_post: MagicMock, mock_patch: MagicMock) -> None:
     _reset_global_agent()
 
@@ -368,7 +368,7 @@ def test_secure_decorator_binds_result(mock_post: MagicMock, mock_patch: MagicMo
     assert add(2, 3) == 5
     result_call = mock_post.call_args_list[-1]
     assert result_call[0][1]["action_type"] == "function:result"
-    assert result_call[0][1]["result_digest"] == asqav_client._digest_result_value(5)
+    assert result_call[0][1]["result_digest"] == asqav_client._sign_body._digest_result_value(5)
 
     @asqav.secure
     def fail() -> None:
@@ -381,7 +381,7 @@ def test_secure_decorator_binds_result(mock_post: MagicMock, mock_patch: MagicMo
         pass
     error_call = mock_post.call_args_list[-1]
     assert error_call[0][1]["action_type"] == "function:error"
-    assert error_call[0][1]["result_digest"] == asqav_client._digest_result_value("boom")
+    assert error_call[0][1]["result_digest"] == asqav_client._sign_body._digest_result_value("boom")
 
 
     # Concurrent first get_agent calls create exactly one agent (no race).

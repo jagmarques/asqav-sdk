@@ -148,7 +148,7 @@ def test_validated_fs_path_expands_user_and_allows_legit(home) -> None:
 # === login command ===
 
 
-@patch("asqav.client._get")
+@patch("asqav.client._transport._get")
 @patch("asqav.init")
 def test_login_saves_credentials(mock_init: MagicMock, mock_get: MagicMock, tmp_path) -> None:
     mock_get.return_value = {"agents": []}
@@ -159,7 +159,7 @@ def test_login_saves_credentials(mock_init: MagicMock, mock_get: MagicMock, tmp_
     assert saved["api_key"] == "sk_test_123"
 
 
-@patch("asqav.client._get")
+@patch("asqav.client._transport._get")
 @patch("asqav.init")
 def test_login_does_not_save_on_validation_failure(
     mock_init: MagicMock, mock_get: MagicMock, tmp_path
@@ -173,7 +173,7 @@ def test_login_does_not_save_on_validation_failure(
     assert not (tmp_path / "credentials").exists()
 
 
-@patch("asqav.client._get")
+@patch("asqav.client._transport._get")
 @patch("asqav.init")
 def test_login_refuses_overwrite_without_force(
     mock_init: MagicMock, mock_get: MagicMock, tmp_path
@@ -187,7 +187,7 @@ def test_login_refuses_overwrite_without_force(
     assert saved["api_key"] == "sk_one"
 
 
-@patch("asqav.client._get")
+@patch("asqav.client._transport._get")
 @patch("asqav.init")
 def test_login_force_overwrites(
     mock_init: MagicMock, mock_get: MagicMock, tmp_path
@@ -203,7 +203,7 @@ def test_login_force_overwrites(
 # === whoami / status commands ===
 
 
-@patch("asqav.client._get")
+@patch("asqav.client._transport._get")
 @patch("asqav.init")
 def test_whoami_reports_env_source(
     mock_init: MagicMock, mock_get: MagicMock, monkeypatch
@@ -217,7 +217,7 @@ def test_whoami_reports_env_source(
     assert "2 agent(s)" in result.output
 
 
-@patch("asqav.client._get")
+@patch("asqav.client._transport._get")
 @patch("asqav.init")
 def test_whoami_reports_file_source(
     mock_init: MagicMock, mock_get: MagicMock, tmp_path, monkeypatch
@@ -230,7 +230,7 @@ def test_whoami_reports_file_source(
     assert "Key source: file" in result.output
 
 
-@patch("asqav.client._get")
+@patch("asqav.client._transport._get")
 @patch("asqav.init")
 def test_whoami_reports_arg_source(
     mock_init: MagicMock, mock_get: MagicMock, monkeypatch
@@ -249,7 +249,7 @@ def test_whoami_no_key_exits_nonzero(monkeypatch) -> None:
     assert "asqav login" in result.output
 
 
-@patch("asqav.client._get")
+@patch("asqav.client._transport._get")
 @patch("asqav.init")
 def test_whoami_rejected_key_exits_nonzero(
     mock_init: MagicMock, mock_get: MagicMock, monkeypatch
@@ -263,7 +263,7 @@ def test_whoami_rejected_key_exits_nonzero(
     assert "rejected" in result.output
 
 
-@patch("asqav.client._get")
+@patch("asqav.client._transport._get")
 @patch("asqav.init")
 def test_status_alias_reports_source(
     mock_init: MagicMock, mock_get: MagicMock, monkeypatch

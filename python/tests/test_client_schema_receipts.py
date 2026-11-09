@@ -70,7 +70,7 @@ def test_valid_context_passes_schema_and_sign_is_called() -> None:
         captured["body"] = body
         return _ok_response()
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign(
             "api:call",
             {"user_id": "u1", "score": 42.5, "active": True},
@@ -92,7 +92,7 @@ def test_valid_context_is_key_sorted_before_signing() -> None:
         return _ok_response()
 
     # Deliberately supply keys in reverse alphabetical order.
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign(
             "api:call",
             {"user_id": "u1", "score": 7, "active": False},
@@ -121,7 +121,7 @@ def test_all_schema_types_pass_correct_values() -> None:
         captured["body"] = body
         return _ok_response()
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign(
             "api:call",
             {
@@ -146,7 +146,7 @@ def test_optional_field_absent_passes() -> None:
         captured["body"] = body
         return _ok_response()
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign(
             "api:call",
             # Only required user_id; score, active, tags, meta are optional.
@@ -167,7 +167,7 @@ def test_missing_required_field_raises_before_network() -> None:
     Non-vacuity: if we strip the raise from validate_context_schema the
     mock_post assertion on `call_count == 0` catches the regression.
     """
-    with patch("asqav.client._post") as mock_post:
+    with patch("asqav.client._transport._post") as mock_post:
         with pytest.raises(AsqavValidationError, match="user_id"):
             _agent().sign(
                 "api:call",
@@ -180,7 +180,7 @@ def test_missing_required_field_raises_before_network() -> None:
 
     # Wrong-type field raises AsqavValidationError; HTTP is never called.
 def test_wrong_type_raises_before_network() -> None:
-    with patch("asqav.client._post") as mock_post:
+    with patch("asqav.client._transport._post") as mock_post:
         with pytest.raises(AsqavValidationError, match="score"):
             _agent().sign(
                 "api:call",
@@ -193,7 +193,7 @@ def test_wrong_type_raises_before_network() -> None:
 
     # bool is a subclass of int; it must be rejected for type=number.
 def test_bool_rejected_for_number_type() -> None:
-    with patch("asqav.client._post") as mock_post:
+    with patch("asqav.client._transport._post") as mock_post:
         with pytest.raises(AsqavValidationError, match="score"):
             _agent().sign(
                 "api:call",
@@ -206,7 +206,7 @@ def test_bool_rejected_for_number_type() -> None:
 
     # A string where object is expected raises the validation error.
 def test_wrong_type_object_raises_before_network() -> None:
-    with patch("asqav.client._post") as mock_post:
+    with patch("asqav.client._transport._post") as mock_post:
         with pytest.raises(AsqavValidationError, match="meta"):
             _agent().sign(
                 "api:call",
@@ -219,7 +219,7 @@ def test_wrong_type_object_raises_before_network() -> None:
 
     # A dict where array is expected raises the validation error.
 def test_wrong_type_array_raises_before_network() -> None:
-    with patch("asqav.client._post") as mock_post:
+    with patch("asqav.client._transport._post") as mock_post:
         with pytest.raises(AsqavValidationError, match="tags"):
             _agent().sign(
                 "api:call",
@@ -232,7 +232,7 @@ def test_wrong_type_array_raises_before_network() -> None:
 
     # AsqavValidationError.docs_url points to structured-receipts docs.
 def test_validation_error_carries_docs_url() -> None:
-    with patch("asqav.client._post"):
+    with patch("asqav.client._transport._post"):
         with pytest.raises(AsqavValidationError) as exc_info:
             _agent().sign(
                 "api:call",
@@ -254,7 +254,7 @@ def test_no_schema_sign_called_as_before() -> None:
         captured["body"] = body
         return _ok_response()
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign(
             "api:call",
             {"any_key": "any_value"},
@@ -272,7 +272,7 @@ def test_no_schema_none_context_unchanged() -> None:
         captured["body"] = body
         return _ok_response()
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign(
             "api:call",
             None,
@@ -297,7 +297,7 @@ def test_custom_callable_validator_passes() -> None:
         captured["body"] = body
         return _ok_response()
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign(
             "api:call",
             {"x": 1},
@@ -315,7 +315,7 @@ def test_custom_callable_validator_raises_propagates() -> None:
     def strict_validator(ctx: dict[str, Any]) -> None:
         raise ValueError("custom_schema_error: x must be positive")
 
-    with patch("asqav.client._post") as mock_post:
+    with patch("asqav.client._transport._post") as mock_post:
         with pytest.raises(ValueError, match="x must be positive"):
             _agent().sign(
                 "api:call",

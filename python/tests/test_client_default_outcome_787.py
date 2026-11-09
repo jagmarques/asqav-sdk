@@ -14,7 +14,8 @@ from unittest.mock import patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from asqav.client import Agent, _digest_result_value
+from asqav.client import Agent
+from asqav.client._sign_body import _digest_result_value
 
 
 def _agent() -> Agent:
@@ -48,7 +49,7 @@ def _capture(**kwargs):
         captured["body"] = body
         return _ok_response()
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign("api:call", {"k": "v"}, **kwargs)
     return captured["body"]
 
@@ -94,7 +95,7 @@ def test_attach_result_links_origin() -> None:
         captured["body"] = body
         return _ok_response()
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().attach_result("act_origin_123", {"status": "ok", "rows": 3})
     body = captured["body"]
     assert body["receipt_type"] == "protectmcp:observation:result_bound"
@@ -110,7 +111,7 @@ def _wire_sign(action: str, **kwargs):
         captured["body"] = body
         return _ok_response()
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         action()
     return captured["body"]
 
@@ -125,8 +126,8 @@ def test_span_end_binds_attributes() -> None:
         return _ok_response()
 
     with (
-        patch("asqav.client.get_agent", return_value=_agent()),
-        patch("asqav.client._post", side_effect=fake_post),
+        patch("asqav.client._spans.get_agent", return_value=_agent()),
+        patch("asqav.client._transport._post", side_effect=fake_post),
     ):
         with span("api:test", {"model": "x"}) as s:
             s.set_attribute("tokens", 7)
@@ -164,7 +165,7 @@ def test_attestation_generate_binds_document() -> None:
 
     with (
         patch.object(client_mod.Agent, "get", return_value=_agent()),
-        patch("asqav.client._post", side_effect=fake_post),
+        patch("asqav.client._transport._post", side_effect=fake_post),
     ):
         client_mod.generate_attestation("agent_outcome")
     body = captured["body"]

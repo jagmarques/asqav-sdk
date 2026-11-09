@@ -440,7 +440,7 @@ def test_verify_json_emits_full_detail(mock_verify: MagicMock) -> None:
 
 
     # agents list prints agents when present.
-@patch("asqav.client._get")
+@patch("asqav.client._transport._get")
 @patch("asqav.init")
 def test_agents_list(mock_init: MagicMock, mock_get: MagicMock) -> None:
     mock_get.return_value = {
@@ -458,7 +458,7 @@ def test_agents_list(mock_init: MagicMock, mock_get: MagicMock) -> None:
 
 
     # agents list prints message when no agents exist.
-@patch("asqav.client._get")
+@patch("asqav.client._transport._get")
 @patch("asqav.init")
 def test_agents_list_empty(mock_init: MagicMock, mock_get: MagicMock) -> None:
     mock_get.return_value = {"agents": []}
@@ -468,7 +468,7 @@ def test_agents_list_empty(mock_init: MagicMock, mock_get: MagicMock) -> None:
 
 
     # The cloud returns a bare JSON array; the CLI must render it directly.
-@patch("asqav.client._get")
+@patch("asqav.client._transport._get")
 @patch("asqav.init")
 def test_agents_list_handles_array_response(
     mock_init: MagicMock, mock_get: MagicMock
@@ -486,7 +486,7 @@ def test_agents_list_handles_array_response(
 
 
     # An empty array response must produce the friendly empty message.
-@patch("asqav.client._get")
+@patch("asqav.client._transport._get")
 @patch("asqav.init")
 def test_agents_list_empty_array(mock_init: MagicMock, mock_get: MagicMock) -> None:
     mock_get.return_value = []
@@ -562,7 +562,7 @@ def test_doctor_no_api_key(mock_urlopen: MagicMock) -> None:
 
 
     # doctor passes all checks when API key is set and API is reachable.
-@patch("asqav.client._urllib_request")
+@patch("asqav.client._transport._urllib_request")
 @patch("urllib.request.urlopen")
 @patch("asqav.client.health_check")
 @patch("asqav.init")
@@ -585,7 +585,7 @@ def test_doctor_all_pass(
     mock_urllib_req.assert_called_once_with("GET", "/agents")
 
 
-@patch("asqav.client._urllib_request")
+@patch("asqav.client._transport._urllib_request")
 @patch("urllib.request.urlopen")
 @patch("asqav.client.health_check")
 @patch("asqav.init")
@@ -611,7 +611,7 @@ def test_doctor_url_join_broken_fails(
 
 
     # doctor reports failure when API is unreachable.
-@patch("asqav.client._urllib_request", return_value=[])
+@patch("asqav.client._transport._urllib_request", return_value=[])
 @patch("urllib.request.urlopen")
 @patch("asqav.client.health_check")
 @patch("asqav.init")
@@ -628,7 +628,7 @@ def test_doctor_api_unreachable(
     assert "Connection refused" in result.output
 
 
-@patch("asqav.client._urllib_request", return_value=[])
+@patch("asqav.client._transport._urllib_request", return_value=[])
 @patch("urllib.request.urlopen")
 @patch("asqav.client.health_check")
 @patch("asqav.init")
@@ -658,7 +658,7 @@ def test_doctor_edge_blocked_403(
 
 
     # doctor reports a clear failure when the edge probe cannot connect.
-@patch("asqav.client._urllib_request", return_value=[])
+@patch("asqav.client._transport._urllib_request", return_value=[])
 @patch("urllib.request.urlopen")
 @patch("asqav.client.health_check")
 @patch("asqav.init")
@@ -933,7 +933,7 @@ def test_compliance_export_unknown_framework(
 
 
 @patch("asqav.Agent.get")
-@patch("asqav.client._get")
+@patch("asqav.client._transport._get")
 @patch("asqav.init")
 def test_preflight_runs_on_free_tier_without_gate(
     mock_init: MagicMock, mock_get_acc: MagicMock, mock_agent_get: MagicMock,
@@ -963,7 +963,7 @@ def test_preflight_runs_on_free_tier_without_gate(
 
 
     # policies list (a former Pro command) is reachable on the free tier.
-@patch("asqav.client._get")
+@patch("asqav.client._transport._get")
 @patch("asqav.init")
 def test_policies_list_runs_on_free_tier_without_gate(
     mock_init: MagicMock, mock_get: MagicMock,
@@ -1017,7 +1017,7 @@ def test_sessions_list_prints_rows(
     assert "active" in result.output
 
 
-@patch("asqav.client._patch")
+@patch("asqav.client._transport._patch")
 @patch("asqav.init")
 def test_sessions_end_calls_patch(
     mock_init: MagicMock, mock_patch: MagicMock
@@ -1033,7 +1033,7 @@ def test_sessions_end_calls_patch(
     mock_patch.assert_called_once_with("/sessions/sess_x", {"status": "completed"})
 
 
-@patch("asqav.client._get")
+@patch("asqav.client._transport._get")
 @patch("asqav.init")
 def test_policies_list_prints_active_flag(
     mock_init: MagicMock, mock_get: MagicMock
@@ -1052,8 +1052,8 @@ def test_policies_list_prints_active_flag(
     assert "active" in result.output
 
 
-@patch("asqav.client._post")
-@patch("asqav.client._get")
+@patch("asqav.client._transport._post")
+@patch("asqav.client._transport._get")
 @patch("asqav.init")
 def test_policies_create_posts_payload(
     mock_init: MagicMock, mock_get: MagicMock, mock_post: MagicMock
@@ -1072,8 +1072,8 @@ def test_policies_create_posts_payload(
     )
 
 
-@patch("asqav.client._delete")
-@patch("asqav.client._get")
+@patch("asqav.client._transport._delete")
+@patch("asqav.client._transport._get")
 @patch("asqav.init")
 def test_webhooks_delete_calls_delete(
     mock_init: MagicMock, mock_get: MagicMock, mock_delete: MagicMock
@@ -1089,8 +1089,8 @@ def test_webhooks_delete_calls_delete(
 
 # The API serves webhooks under /alerts; a bare /webhooks answers 404, and
 # signature.created was never an alert type, so a default create failed 422
-@patch("asqav.client._post")
-@patch("asqav.client._get")
+@patch("asqav.client._transport._post")
+@patch("asqav.client._transport._get")
 @patch("asqav.init")
 def test_webhooks_create_defaults_to_every_alert_type(
     mock_init: MagicMock, mock_get: MagicMock, mock_post: MagicMock
@@ -1107,7 +1107,7 @@ def test_webhooks_create_defaults_to_every_alert_type(
     )
 
 
-@patch("asqav.client._get")
+@patch("asqav.client._transport._get")
 @patch("asqav.init")
 def test_webhooks_list_and_events_read_the_alerts_routes(
     mock_init: MagicMock, mock_get: MagicMock
@@ -1134,7 +1134,7 @@ def test_webhooks_list_and_events_read_the_alerts_routes(
 
 
     # audit-pack export writes the cloud-signed bundle to disk.
-@patch("asqav.client._post")
+@patch("asqav.client._transport._post")
 @patch("asqav.init")
 def test_audit_pack_export_writes_bundle(
     mock_init: MagicMock, mock_post: MagicMock, tmp_path
@@ -1170,7 +1170,7 @@ def test_audit_pack_export_writes_bundle(
 
 
     # audit-pack policy returns the artefact JSON. 64-hex prefixes sha256:.
-@patch("asqav.client._get")
+@patch("asqav.client._transport._get")
 @patch("asqav.init")
 def test_audit_pack_policy_resolves_digest(
     mock_init: MagicMock, mock_get: MagicMock
@@ -1198,7 +1198,7 @@ def test_audit_pack_policy_resolves_digest(
 
 
     # payloads erase --yes calls DELETE /signatures/payloads/{id}.
-@patch("asqav.client._delete")
+@patch("asqav.client._transport._delete")
 @patch("asqav.init")
 def test_payloads_erase_calls_delete(
     mock_init: MagicMock, mock_delete: MagicMock
@@ -1217,7 +1217,7 @@ def test_payloads_erase_calls_delete(
 # === org set-compliance-strict ===
 
 
-@patch("asqav.client._patch")
+@patch("asqav.client._transport._patch")
 @patch("asqav.init")
 def test_org_set_compliance_strict_enable(
     mock_init: MagicMock, mock_patch: MagicMock
@@ -1279,7 +1279,7 @@ def test_keys_generate_ml_dsa_errors() -> None:
 
 
     # audit-pack verify posts the bundle wrapped in {bundle: ...} and prints VALID.
-@patch("asqav.client._post")
+@patch("asqav.client._transport._post")
 @patch("asqav.init")
 def test_audit_pack_verify_valid(
     mock_init: MagicMock, mock_post: MagicMock, tmp_path
@@ -1312,7 +1312,7 @@ def test_audit_pack_verify_valid(
 
 
     # audit-pack verify exits 1 and lists failed receipts on an invalid bundle.
-@patch("asqav.client._post")
+@patch("asqav.client._transport._post")
 @patch("asqav.init")
 def test_audit_pack_verify_invalid_exits_1(
     mock_init: MagicMock, mock_post: MagicMock, tmp_path
@@ -1456,7 +1456,7 @@ def test_keys_revoke_calls_delete(mock_session: MagicMock) -> None:
 
 
     # compliance templates GETs the templates route and renders ids.
-@patch("asqav.client._get")
+@patch("asqav.client._transport._get")
 @patch("asqav.init")
 def test_compliance_templates_lists(
     mock_init: MagicMock, mock_get: MagicMock
@@ -1473,7 +1473,7 @@ def test_compliance_templates_lists(
 
 
     # compliance report POSTs the create route with the report_type body.
-@patch("asqav.client._post")
+@patch("asqav.client._transport._post")
 @patch("asqav.init")
 def test_compliance_report_creates(
     mock_init: MagicMock, mock_post: MagicMock
@@ -1499,7 +1499,7 @@ def test_compliance_report_creates(
 
 
     # compliance reports GETs the list route and renders report rows.
-@patch("asqav.client._get")
+@patch("asqav.client._transport._get")
 @patch("asqav.init")
 def test_compliance_reports_lists(
     mock_init: MagicMock, mock_get: MagicMock
@@ -1531,7 +1531,7 @@ def test_compliance_reports_lists(
 
 
     # observability summary GETs the summary route and renders totals.
-@patch("asqav.client._get")
+@patch("asqav.client._transport._get")
 @patch("asqav.init")
 def test_observability_summary(
     mock_init: MagicMock, mock_get: MagicMock
@@ -1553,7 +1553,7 @@ def test_observability_summary(
 
 
     # observability metrics threads --hours and --window into the query string.
-@patch("asqav.client._get")
+@patch("asqav.client._transport._get")
 @patch("asqav.init")
 def test_observability_metrics_passes_window(
     mock_init: MagicMock, mock_get: MagicMock
@@ -1588,7 +1588,7 @@ def test_observability_metrics_passes_window(
 
 
     # replay-verify wraps replay() and prints the IETF outcome.
-@patch("asqav.client._get")
+@patch("asqav.client._transport._get")
 @patch("asqav.replay")
 @patch("asqav.init")
 def test_replay_verify_chain_valid(
@@ -1620,7 +1620,7 @@ def test_replay_verify_chain_valid(
 
 
     # replay-verify --strict fails when any step lacks signed_envelope.
-@patch("asqav.client._get")
+@patch("asqav.client._transport._get")
 @patch("asqav.replay")
 @patch("asqav.init")
 def test_replay_verify_strict_rejects_steps_without_envelope(

@@ -52,9 +52,9 @@ MOCK_AGENT_DATA = {
 
 
     # When cleared, explanation says action is allowed.
-@patch("asqav.client._get")
-@patch("asqav.client._post")
-@patch("asqav.client._api_key", "sk_test")
+@patch("asqav.client._transport._get")
+@patch("asqav.client._transport._post")
+@patch("asqav.client._transport._api_key", "sk_test")
 def test_explanation_when_cleared(mock_post, mock_get):
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")
@@ -73,9 +73,9 @@ def test_explanation_when_cleared(mock_post, mock_get):
 
 
     # When agent is revoked, explanation says agent has been revoked.
-@patch("asqav.client._get")
-@patch("asqav.client._post")
-@patch("asqav.client._api_key", "sk_test")
+@patch("asqav.client._transport._get")
+@patch("asqav.client._transport._post")
+@patch("asqav.client._transport._api_key", "sk_test")
 def test_explanation_when_revoked(mock_post, mock_get):
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")
@@ -91,9 +91,9 @@ def test_explanation_when_revoked(mock_post, mock_get):
 
 
     # When agent is suspended, explanation mentions suspension.
-@patch("asqav.client._get")
-@patch("asqav.client._post")
-@patch("asqav.client._api_key", "sk_test")
+@patch("asqav.client._transport._get")
+@patch("asqav.client._transport._post")
+@patch("asqav.client._transport._api_key", "sk_test")
 def test_explanation_when_suspended(mock_post, mock_get):
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")
@@ -109,9 +109,9 @@ def test_explanation_when_suspended(mock_post, mock_get):
 
 
     # When blocked by policy, explanation mentions policy rules.
-@patch("asqav.client._get")
-@patch("asqav.client._post")
-@patch("asqav.client._api_key", "sk_test")
+@patch("asqav.client._transport._get")
+@patch("asqav.client._transport._post")
+@patch("asqav.client._transport._api_key", "sk_test")
 def test_explanation_when_policy_blocked(mock_post, mock_get):
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")
@@ -127,9 +127,9 @@ def test_explanation_when_policy_blocked(mock_post, mock_get):
 
 
     # When both revoked and policy-blocked, revocation is the explanation.
-@patch("asqav.client._get")
-@patch("asqav.client._post")
-@patch("asqav.client._api_key", "sk_test")
+@patch("asqav.client._transport._get")
+@patch("asqav.client._transport._post")
+@patch("asqav.client._transport._api_key", "sk_test")
 def test_explanation_revoked_takes_priority_over_policy(mock_post, mock_get):
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")

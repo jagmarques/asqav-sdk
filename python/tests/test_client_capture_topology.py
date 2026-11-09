@@ -16,13 +16,8 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 import asqav
-from asqav.client import (
-    CAPTURE_TOPOLOGY_NAMESPACE,
-    DECISION_MAP,
-    RECEIPT_TYPE_NAMESPACE,
-    Agent,
-    _map_policy_decision_to_decision,
-)
+from asqav.client import CAPTURE_TOPOLOGY_NAMESPACE, DECISION_MAP, RECEIPT_TYPE_NAMESPACE, Agent
+from asqav.client._vocabulary import _map_policy_decision_to_decision
 
 
 def _agent() -> Agent:
@@ -78,7 +73,7 @@ def test_decision_vocabulary_includes_observation() -> None:
             "decision": "observation",
         })
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         resp = _agent().sign(
             "api:call",
             {"k": "v"},
@@ -100,7 +95,7 @@ def test_observation_round_trips_on_response_without_cloud_field() -> None:
         "policy_decision": "none",
         "receipt_type": "protectmcp:lifecycle",
     }
-    with patch("asqav.client._post", return_value=_ok_response(extra)):
+    with patch("asqav.client._transport._post", return_value=_ok_response(extra)):
         resp = _agent().sign(
             "api:call",
             {"k": "v"},
@@ -152,7 +147,7 @@ def test_capture_topology_passes_through(value: str) -> None:
         captured["body"] = body
         return _ok_response()
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign(
             "api:call",
             {"k": "v"},
@@ -164,7 +159,7 @@ def test_capture_topology_passes_through(value: str) -> None:
 
     # A value outside the closed Literal is rejected before the HTTP call.
 def test_capture_topology_invalid_value_rejected() -> None:
-    with patch("asqav.client._post") as p:
+    with patch("asqav.client._transport._post") as p:
         with pytest.raises(ValueError, match="invalid_capture_topology"):
             _agent().sign(
                 "api:call",
@@ -183,7 +178,7 @@ def test_capture_topology_absent_when_not_set() -> None:
         captured["body"] = body
         return _ok_response()
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign(
             "api:call",
             {"k": "v"},
@@ -201,7 +196,7 @@ def test_capture_topology_dropped_outside_compliance_mode() -> None:
         captured["body"] = body
         return _ok_response()
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign(
             "api:call",
             {"k": "v"},
@@ -223,7 +218,7 @@ def test_capture_topology_parametrised_accepts_all_values(value: str) -> None:
         captured["body"] = body
         return _ok_response()
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign(
             "api:call",
             {"k": "v"},
@@ -243,7 +238,7 @@ def test_capture_topology_parametrised_accepts_all_values(value: str) -> None:
     "bad_value", ["bogus", "in-process-sdk", "PASSIVE_TELEMETRY", " "]
 )
 def test_capture_topology_parametrised_rejects_unknown(bad_value: str) -> None:
-    with patch("asqav.client._post") as p:
+    with patch("asqav.client._transport._post") as p:
         with pytest.raises(ValueError, match="invalid_capture_topology"):
             _agent().sign(
                 "api:call",
@@ -285,7 +280,7 @@ def test_receipt_type_parametrised_accepts_all_values(value: str) -> None:
         kwargs["repo_ref"] = "github.com/acme/repo"
         kwargs["commit_sha"] = "c0ffee0000000000000000000000000000000000"
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign("api:call", {"k": "v"}, **kwargs)
     assert captured["body"]["receipt_type"] == value
 
@@ -296,7 +291,7 @@ def test_receipt_type_parametrised_accepts_all_values(value: str) -> None:
     ["protectmcp:bogus", "protectmcp:Observation", "decision", "observation"],
 )
 def test_receipt_type_parametrised_rejects_unknown(bad_value: str) -> None:
-    with patch("asqav.client._post") as p:
+    with patch("asqav.client._transport._post") as p:
         with pytest.raises(ValueError, match="invalid_receipt_type"):
             _agent().sign(
                 "api:call",
@@ -310,7 +305,7 @@ def test_receipt_type_parametrised_rejects_unknown(bad_value: str) -> None:
 def test_passive_telemetry_with_decision_receipt_rejected() -> None:
     """Client-side mirror of cloud rule 8: passive_telemetry +
     protectmcp:decision fails before the HTTP roundtrip."""
-    with patch("asqav.client._post") as p:
+    with patch("asqav.client._transport._post") as p:
         with pytest.raises(ValueError, match="false_attestation_guard"):
             _agent().sign(
                 "api:call",
@@ -347,7 +342,7 @@ class TestFalseAttestationGuardWidened:
         the verbatim false_attestation_guard prefix and the (rule 8)
         suffix. The HTTP layer must not be reached."""
         offending = receipt_type.split(":", 1)[-1]
-        with patch("asqav.client._post") as p:
+        with patch("asqav.client._transport._post") as p:
             with pytest.raises(ValueError) as exc_info:
                 _agent().sign(
                     "api:call",
@@ -371,7 +366,7 @@ class TestFalseAttestationGuardWidened:
             captured["body"] = body
             return _ok_response()
 
-        with patch("asqav.client._post", side_effect=fake_post):
+        with patch("asqav.client._transport._post", side_effect=fake_post):
             _agent().sign(
                 "api:call",
                 {"k": "v"},
@@ -391,7 +386,7 @@ def test_passive_telemetry_with_observation_receipt_accepted() -> None:
         captured["body"] = body
         return _ok_response()
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign(
             "api:call",
             {"k": "v"},

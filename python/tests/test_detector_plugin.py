@@ -188,7 +188,7 @@ def test_allow_detector_lets_sign_proceed() -> None:
         return _ok_response()
 
     register_detector(AllowDetector())
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign("api:call", {"model": "gpt-4"}, compliance_mode=False)
 
     assert captured, "sign() POST was never called: allow detector blocked sign"
@@ -212,7 +212,7 @@ def test_deny_detector_blocks_sign_no_post() -> None:
         return _ok_response()
 
     register_detector(DenyDetector())
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         with pytest.raises(DetectorBlockedError) as exc_info:
             _agent().sign("api:call", {"ssn": "123-45-6789"}, compliance_mode=False)
 
@@ -230,7 +230,7 @@ def test_fail_closed_detector_error_blocks_sign() -> None:
         return _ok_response()
 
     register_detector(RaisingDetector())
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         with pytest.raises(DetectorBlockedError):
             _agent().sign("api:call", {}, compliance_mode=False)
 
@@ -246,7 +246,7 @@ def test_fail_open_detector_error_allows_sign() -> None:
         return _ok_response()
 
     register_detector(RaisingDetector(), fail_open=True)
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign("api:call", {"x": 1}, compliance_mode=False)
 
     assert captured, "sign() POST should proceed with fail_open=True"
@@ -265,7 +265,7 @@ def test_additive_no_detector_body_unchanged() -> None:
         captured["body"] = body
         return _ok_response()
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign("api:call", {"model": "gpt-4"}, compliance_mode=False)
 
     assert captured

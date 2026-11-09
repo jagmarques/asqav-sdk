@@ -80,7 +80,7 @@ def test_sync_success(tmp_path: object) -> None:
     queue.enqueue("agent_1", "action_a")
     queue.enqueue("agent_2", "action_b")
 
-    with patch("asqav.client._post", return_value={"signature_id": "sig_123"}):
+    with patch("asqav.client._transport._post", return_value={"signature_id": "sig_123"}):
         result = queue.sync()
 
     assert result["synced"] == 2
@@ -105,7 +105,7 @@ def test_sync_partial_failure(tmp_path: object) -> None:
     queue.enqueue("agent_1", "action_a")
     queue.enqueue("agent_2", "action_b")
 
-    with patch("asqav.client._post", side_effect=mock_post):
+    with patch("asqav.client._transport._post", side_effect=mock_post):
         result = queue.sync()
 
     assert result["synced"] == 1
@@ -121,7 +121,7 @@ def test_sync_partial_failure(tmp_path: object) -> None:
 def test_sync_empty_queue(tmp_path: object) -> None:
     queue = LocalQueue(queue_dir=str(tmp_path))
 
-    with patch("asqav.client._post") as mock_post:
+    with patch("asqav.client._transport._post") as mock_post:
         result = queue.sync()
 
     assert result["synced"] == 0

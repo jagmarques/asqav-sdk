@@ -165,14 +165,14 @@ def _isolated(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Any:
 
     monkeypatch.setattr(socket, "getaddrinfo", guarded)
     monkeypatch.setattr("asqav.retry.time.sleep", lambda _s: None)
-    monkeypatch.setattr(client_mod.time, "sleep", lambda _s: None)
+    monkeypatch.setattr(client_mod._transport.time, "sleep", lambda _s: None)
     names = ("_api_key", "_api_base", "_explicit_api_base", "_client", "_mode")
-    saved = {n: getattr(client_mod, n, None) for n in names}
-    client_mod._api_base = DEAD_BASE
-    client_mod._explicit_api_base = None
+    saved = {n: getattr(client_mod._transport, n, None) for n in names}
+    client_mod._transport._api_base = DEAD_BASE
+    client_mod._transport._explicit_api_base = None
     yield
     for name, value in saved.items():
-        setattr(client_mod, name, value)
+        setattr(client_mod._transport, name, value)
 
 
 def _save_login(tmp_path: Path, base: str) -> None:
@@ -183,7 +183,7 @@ def _save_login(tmp_path: Path, base: str) -> None:
 
 
 def test_verify_cli_fresh_receipt_is_valid_with_anchor_pending(stub: _Stub) -> None:
-    client_mod._api_base = stub.base
+    client_mod._transport._api_base = stub.base
     result = runner.invoke(app, ["verify", "sig_stub01"])
     assert result.exit_code == 0, result.output
     assert "Signature: valid" in result.output
@@ -192,7 +192,7 @@ def test_verify_cli_fresh_receipt_is_valid_with_anchor_pending(stub: _Stub) -> N
 
 
 def test_verify_cli_bad_signature_reads_invalid(stub: _Stub) -> None:
-    client_mod._api_base = stub.base
+    client_mod._transport._api_base = stub.base
     stub.mode = "badsig"
     result = runner.invoke(app, ["verify", "sig_stub01"])
     assert "Signature: invalid" in result.output
@@ -211,7 +211,7 @@ REJECTIONS = [
 @pytest.mark.parametrize("label", REJECTIONS)
 def test_verify_cli_server_rejection_reads_invalid_and_exits_1(stub: _Stub, label: str) -> None:
     # signature_valid stays true on these; the server's label is the verdict.
-    client_mod._api_base = stub.base
+    client_mod._transport._api_base = stub.base
     stub.detail = {"validation_label": label, "anchor_valid_ots": True,
                    "anchor_status_ots": "valid"}
     result = runner.invoke(app, ["verify", "sig_stub01"])
@@ -221,7 +221,7 @@ def test_verify_cli_server_rejection_reads_invalid_and_exits_1(stub: _Stub, labe
 
 def test_verify_cli_passing_attestation_reads_valid(stub: _Stub) -> None:
     # The cloud counts this label as a pass although verified is false.
-    client_mod._api_base = stub.base
+    client_mod._transport._api_base = stub.base
     stub.detail = {"validation_label": "valid_commitment_not_rederivable",
                    "anchor_valid_ots": True, "anchor_status_ots": "valid"}
     result = runner.invoke(app, ["verify", "sig_stub01"])
@@ -230,7 +230,7 @@ def test_verify_cli_passing_attestation_reads_valid(stub: _Stub) -> None:
 
 
 def test_verify_cli_one_invalid_anchor_reads_invalid(stub: _Stub) -> None:
-    client_mod._api_base = stub.base
+    client_mod._transport._api_base = stub.base
     stub.detail = {"validation_label": "anchor_invalid", "anchor_valid_ots": True,
                    "anchor_status_ots": "valid", "anchor_status_rfc3161": "invalid"}
     result = runner.invoke(app, ["verify", "sig_stub01"])
@@ -240,7 +240,7 @@ def test_verify_cli_one_invalid_anchor_reads_invalid(stub: _Stub) -> None:
 
 
 def test_verify_dict_carries_signature_and_anchor(stub: _Stub) -> None:
-    client_mod._api_base = stub.base
+    client_mod._transport._api_base = stub.base
     result = asqav.verify("sig_stub01")
     assert result["verified"] is False
     assert result["signature_valid"] is True
@@ -253,13 +253,13 @@ def test_verify_dict_carries_signature_and_anchor(stub: _Stub) -> None:
 def test_init_uses_base_saved_by_login(tmp_path: Path) -> None:
     _save_login(tmp_path, "http://saved.test/api/v1")
     asqav.init(api_key="sk_test")
-    assert client_mod._api_base == "http://saved.test/api/v1"
+    assert client_mod._transport._api_base == "http://saved.test/api/v1"
 
 
 def test_init_honours_asqav_api_base(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("ASQAV_API_BASE", "http://env-base.test/api/v1")
     asqav.init(api_key="sk_test")
-    assert client_mod._api_base == "http://env-base.test/api/v1"
+    assert client_mod._transport._api_base == "http://env-base.test/api/v1"
 
 
 def test_base_resolution_order(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -270,12 +270,12 @@ def test_base_resolution_order(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) 
     assert credentials.resolve_api_base() == "http://base.test"
     monkeypatch.setenv("ASQAV_API_URL", "http://url.test")
     asqav.init(api_key="sk_test")
-    assert client_mod._api_base == "http://url.test"
+    assert client_mod._transport._api_base == "http://url.test"
     asqav.init(api_key="sk_test", base_url="http://arg.test")
-    assert client_mod._api_base == "http://arg.test"
+    assert client_mod._transport._api_base == "http://arg.test"
     # A later init() without a base (govern() does this) keeps the explicit one.
     asqav.init(api_key="sk_test")
-    assert client_mod._api_base == "http://arg.test"
+    assert client_mod._transport._api_base == "http://arg.test"
 
 
 def test_doctor_probes_the_saved_base(stub: _Stub, tmp_path: Path) -> None:
@@ -338,7 +338,7 @@ def _compiles(text: str) -> bool:
 def _run_printed(code: str, stub: _Stub, monkeypatch: pytest.MonkeyPatch) -> str:
     monkeypatch.setenv("ASQAV_API_KEY", "sk_test")
     monkeypatch.setenv("ASQAV_API_URL", stub.base)
-    client_mod._api_base = stub.base
+    client_mod._transport._api_base = stub.base
     out = io.StringIO()
     with contextlib.redirect_stdout(out):
         exec(compile(code, "<printed>", "exec"), {"__name__": "__printed__"})
@@ -373,7 +373,7 @@ def test_init_snippet_runs(stub: _Stub, monkeypatch: pytest.MonkeyPatch) -> None
 @pytest.fixture(params=["httpx", "urllib"])
 def transport(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> str:
     if request.param == "urllib":
-        monkeypatch.setattr(client_mod, "_HTTPX_AVAILABLE", False)
+        monkeypatch.setattr(client_mod._transport, "_HTTPX_AVAILABLE", False)
     return request.param
 
 
@@ -418,7 +418,7 @@ def test_non_json_success_body_is_asqav_error(stub: _Stub, transport: str) -> No
     err = _create_error(stub.base)
     assert isinstance(err, asqav.AsqavResponseError)
     assert "\n" not in str(err)
-    client_mod._api_base = stub.base
+    client_mod._transport._api_base = stub.base
     with pytest.raises(asqav.AsqavResponseError):
         asqav.verify_signature("sig_x")
 

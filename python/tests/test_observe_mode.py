@@ -35,7 +35,7 @@ def test_observe_mode_returns_none(mock_agent_cls):
     mock_agent = MagicMock()
     mock_agent_cls.create.return_value = mock_agent
 
-    with patch("asqav.client._api_key", "sk_test"):
+    with patch("asqav.client._transport._api_key", "sk_test"):
         adapter = _ObserveAdapter(agent_name="test", observe=True)
 
     result = adapter._sign_action("llm:call", {"model": "gpt-4"})
@@ -49,7 +49,7 @@ def test_observe_mode_does_not_accumulate_signatures(mock_agent_cls):
     mock_agent = MagicMock()
     mock_agent_cls.create.return_value = mock_agent
 
-    with patch("asqav.client._api_key", "sk_test"):
+    with patch("asqav.client._transport._api_key", "sk_test"):
         adapter = _ObserveAdapter(agent_name="test", observe=True)
 
     adapter._sign_action("action:one")
@@ -64,7 +64,7 @@ def test_observe_mode_logs_action(mock_agent_cls, caplog):
     mock_agent = MagicMock()
     mock_agent_cls.create.return_value = mock_agent
 
-    with patch("asqav.client._api_key", "sk_test"):
+    with patch("asqav.client._transport._api_key", "sk_test"):
         adapter = _ObserveAdapter(agent_name="test", observe=True)
 
     with caplog.at_level(logging.INFO, logger="asqav"):
@@ -82,7 +82,7 @@ def test_observe_mode_logs_none_context(mock_agent_cls, caplog):
     mock_agent = MagicMock()
     mock_agent_cls.create.return_value = mock_agent
 
-    with patch("asqav.client._api_key", "sk_test"):
+    with patch("asqav.client._transport._api_key", "sk_test"):
         adapter = _ObserveAdapter(agent_name="test", observe=True)
 
     with caplog.at_level(logging.INFO, logger="asqav"):
@@ -100,7 +100,7 @@ def test_observe_false_calls_server(mock_agent_cls):
     mock_agent.sign.return_value = mock_sig
     mock_agent_cls.create.return_value = mock_agent
 
-    with patch("asqav.client._api_key", "sk_test"):
+    with patch("asqav.client._transport._api_key", "sk_test"):
         adapter = _ObserveAdapter(agent_name="test", observe=False)
 
     result = adapter._sign_action("llm:call", {"model": "gpt-4"})
@@ -114,7 +114,7 @@ def test_default_observe_is_false(mock_agent_cls):
     mock_agent = MagicMock()
     mock_agent_cls.create.return_value = mock_agent
 
-    with patch("asqav.client._api_key", "sk_test"):
+    with patch("asqav.client._transport._api_key", "sk_test"):
         adapter = _ObserveAdapter(agent_name="test")
 
     assert adapter._observe is False

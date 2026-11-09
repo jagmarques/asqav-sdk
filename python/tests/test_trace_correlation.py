@@ -61,7 +61,7 @@ def test_generate_trace_id_exported() -> None:
 
 
     # sign() includes _trace_id in context when trace_id is provided.
-@patch("asqav.client._post")
+@patch("asqav.client._transport._post")
 def test_sign_with_trace_id(mock_post: object) -> None:
     mock_post.return_value = MOCK_SIGN_RESPONSE  # type: ignore[attr-defined]
     agent = _make_agent()
@@ -74,7 +74,7 @@ def test_sign_with_trace_id(mock_post: object) -> None:
 
 
     # sign() includes _parent_id in context when parent_id is provided.
-@patch("asqav.client._post")
+@patch("asqav.client._transport._post")
 def test_sign_with_parent_id(mock_post: object) -> None:
     mock_post.return_value = MOCK_SIGN_RESPONSE  # type: ignore[attr-defined]
     agent = _make_agent()
@@ -87,7 +87,7 @@ def test_sign_with_parent_id(mock_post: object) -> None:
 
 
     # sign() includes both _trace_id and _parent_id when both provided.
-@patch("asqav.client._post")
+@patch("asqav.client._transport._post")
 def test_sign_with_both_trace_and_parent(mock_post: object) -> None:
     mock_post.return_value = MOCK_SIGN_RESPONSE  # type: ignore[attr-defined]
     agent = _make_agent()
@@ -101,7 +101,7 @@ def test_sign_with_both_trace_and_parent(mock_post: object) -> None:
 
 
     # Trace fields merge into user-provided context without overwriting.
-@patch("asqav.client._post")
+@patch("asqav.client._transport._post")
 def test_sign_trace_merges_with_existing_context(mock_post: object) -> None:
     mock_post.return_value = MOCK_SIGN_RESPONSE  # type: ignore[attr-defined]
     agent = _make_agent()
@@ -115,7 +115,7 @@ def test_sign_trace_merges_with_existing_context(mock_post: object) -> None:
 
 
     # When no trace_id/parent_id given, context has no _trace_id/_parent_id.
-@patch("asqav.client._post")
+@patch("asqav.client._transport._post")
 def test_sign_without_trace_no_trace_keys(mock_post: object) -> None:
     mock_post.return_value = MOCK_SIGN_RESPONSE  # type: ignore[attr-defined]
     agent = _make_agent()
@@ -129,7 +129,7 @@ def test_sign_without_trace_no_trace_keys(mock_post: object) -> None:
 
 
     # sign() still returns a proper SignatureResponse with trace params.
-@patch("asqav.client._post")
+@patch("asqav.client._transport._post")
 def test_sign_returns_signature_response(mock_post: object) -> None:
     mock_post.return_value = MOCK_SIGN_RESPONSE  # type: ignore[attr-defined]
     agent = _make_agent()

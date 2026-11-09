@@ -64,7 +64,7 @@ def _acknowledge(peer: dict, **kwargs) -> dict:
         captured["path"], captured["body"] = path, body
         return _ok()
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().acknowledge(peer, **kwargs)
     return captured
 
@@ -101,7 +101,7 @@ def test_explicit_receipt_ref_wins_and_one_is_required() -> None:
 
 
 def test_binding_is_fenced_to_acknowledgment_receipts() -> None:
-    with patch("asqav.client._post") as post:
+    with patch("asqav.client._transport._post") as post:
         with pytest.raises(
             ValueError, match="counterparty_binding_requires_acknowledgment_receipt"
         ):
@@ -120,7 +120,7 @@ def test_binding_is_fenced_to_acknowledgment_receipts() -> None:
 
 
 def test_receipt_hands_over_the_signed_envelope() -> None:
-    with patch("asqav.client._post", return_value=_ok()):
+    with patch("asqav.client._transport._post", return_value=_ok()):
         response = _agent("agent_a").sign("a2a:send", {"to": "agent_b"})
     receipt = response.receipt()
     assert receipt == {

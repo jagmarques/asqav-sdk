@@ -1,0 +1,1285 @@
+{
+  "asqav": {
+    "ACKNOWLEDGMENT_RECEIPT_TYPE": {
+      "value": "str 'protectmcp:acknowledgment'"
+    },
+    "ALGORITHM_ED25519": {
+      "value": "str 'ed25519'"
+    },
+    "ALGORITHM_ES256": {
+      "value": "str 'es256'"
+    },
+    "ALGORITHM_ML_DSA_65": {
+      "value": "str 'ml-dsa-65'"
+    },
+    "APIError": {
+      "class": "(message: 'str', status_code: 'int | None' = None) -> 'None'",
+      "members": {}
+    },
+    "ATTESTATION_STATEMENT_SCHEMA": {
+      "value": "str 'asqav.attestation/1'"
+    },
+    "AUTHORITATIVE_CAPTURE_LAYER": {
+      "value": "str 'github_sha_pull'"
+    },
+    "AcceptorDecision": {
+      "class": "(accepted: 'bool', reason: 'str', verdict: 'str', failure_class: 'str | None' = None, first_failing_edge: 'str | None' = None, rule: 'str | None' = None) -> None",
+      "members": {
+        "failure_class": "NoneType None",
+        "first_failing_edge": "NoneType None",
+        "rule": "NoneType None"
+      }
+    },
+    "AcceptorMiddleware": {
+      "class": "(app: 'Any', *, key_provider: 'Any' = None, header: 'str' = 'x-asqav-receipt', predecessor_for: 'Any' = None, challenge_for: 'Any' = None, status_code: 'int' = 403, exempt_paths: 'tuple[str, ...]' = ()) -> 'None'",
+      "members": {}
+    },
+    "Agent": {
+      "class": "(agent_id: 'str', name: 'str', public_key: 'str', key_id: 'str', algorithm: 'str', capabilities: 'list[str]', created_at: 'float', _session_id: 'str | None' = None) -> None",
+      "members": {
+        "acknowledge": "(self, peer_receipt: 'dict[str, Any]', *, receipt_ref: 'str | None' = None, action_type: 'str' = 'a2a:acknowledge', context: 'dict[str, Any] | None' = None, expect_ack_from: 'str | None' = None, transport_label: 'str | None' = None, profile_version: 'str | None' = None, terms: 'dict[str, Any] | None' = None) -> 'SignatureResponse'",
+        "attach_result": "(self, action_ref: 'str', result: 'bytes | str | dict | list', *, action_type: 'str' = 'protectmcp:observation', tool_name: 'str | None' = None, result_digest: 'str | None' = None, compliance_mode: 'bool' = True) -> 'SignatureResponse'",
+        "countersign": "(self, signature_id: 'str') -> 'SignatureResponse'",
+        "create": "classmethod (cls, name: 'str', algorithm: 'str' = 'ml-dsa-65', capabilities: 'list[str] | None' = None) -> 'Agent'",
+        "create_scope_token": "(self, actions: 'list[str]', ttl: 'int' = 3600, metadata: 'dict[str, Any] | None' = None) -> \"'ScopeToken'\"",
+        "decommission": "(self, reason: 'str' = 'manual') -> 'dict[str, Any]'",
+        "delegate": "(self, name: 'str', scope: 'list[str] | None' = None, ttl: 'int' = 86400) -> \"'Agent'\"",
+        "end_session": "(self, status: 'str' = 'completed') -> 'SessionResponse'",
+        "get": "classmethod (cls, agent_id: 'str') -> 'Agent'",
+        "get_certificate": "(self) -> 'CertificateResponse'",
+        "get_session_signatures": "(self) -> 'list[SignedActionResponse]'",
+        "is_revoked": "property",
+        "is_suspended": "property",
+        "issue_sd_token": "(self, claims: 'dict[str, Any] | None' = None, disclosable: 'list[str] | None' = None, ttl: 'int' = 3600) -> 'SDTokenResponse'",
+        "issue_token": "(self, scope: 'list[str] | None' = None, ttl: 'int' = 3600) -> 'TokenResponse'",
+        "preflight": "(self, action_type: 'str') -> 'PreflightResult'",
+        "quarantine": "(self) -> 'dict[str, Any]'",
+        "revoke": "(self, reason: 'str' = 'manual') -> 'None'",
+        "sign": "(self, action_type: 'str', context: 'dict[str, Any] | None' = None, system_prompt_hash: 'str | None' = None, model_params: 'dict | None' = None, tool_inputs_hash: 'str | None' = None, trace_id: 'str | None' = None, parent_id: 'str | None' = None, counterparty: 'dict[str, Any] | None' = None, tool_name: 'str | None' = None, model_name: 'str | None' = None, *, context_schema: \"'dict[str, Any] | Callable[[dict[str, Any]], None] | None'\" = None, co_signers: 'list[str] | None' = None, mandate_id: 'str | None' = None, user_intent: 'dict[str, Any] | None' = None, nonce: 'str | None' = None, valid_seconds: 'int | None' = None, expected_executor_pubkey_b64: 'str | None' = None, compliance_mode: 'bool' = True, receipt_type: 'str | None' = None, action_ref: 'str | None' = None, payload_digest: 'str | dict[str, Any] | None' = None, issuer_id: 'str | None' = None, iteration_id: 'str | None' = None, sandbox_state: 'str | None' = None, risk_class: 'str | None' = None, incident_class: 'str | list[str] | None' = None, reason: 'str | None' = None, policy_decision: 'str' = 'permit', capture_topology: 'str | None' = None, result_digest: 'str | None' = None, result: 'bytes | str | dict | list | None' = None, expires_at: 'str | float | None' = None, tool_schema: 'dict[str, Any] | None' = None, tool_fingerprint: 'str | None' = None, config_manifest_digest: 'str | None' = None, cve_inventory_digest: 'str | None' = None, executable_hash: 'str | None' = None, sbom_digest: 'str | None' = None, slsa_provenance_pointer: 'str | None' = None, supply_chain_pointer: 'str | None' = None, mitre_techniques: 'list[str] | None' = None, mitre_atlas: 'list[str] | None' = None, owasp_llm_top10: 'list[str] | None' = None, owasp_agentic_top10: 'list[str] | None' = None, nist_ai_rmf: 'list[str] | None' = None, iso_42001: 'list[str] | None' = None, eu_ai_act_articles: 'list[str] | None' = None, rfc3161_timestamp: 'str | None' = None, witness_policy: 'dict[str, Any] | None' = None, approver_id: 'str | None' = None, initiator_id: 'str | None' = None, acceptance_reason: 'str | None' = None, accepted_at: 'str | None' = None, supersedes: 'str | None' = None, sarif_digest: 'str | None' = None, finding_ref: 'str | None' = None, approval_ref: 'str | None' = None, risk_snapshot: \"'RiskSnapshot | dict[str, Any] | None'\" = None, invocation_ref: 'str | None' = None, repo_ref: 'str | None' = None, commit_sha: 'str | None' = None, base_sha: 'str | None' = None, change_digest: 'str | None' = None, change_ref: 'str | None' = None, change_approval_ref: 'str | None' = None, change_class: 'str | None' = None, authored_by: \"'AuthoredBy | dict[str, Any] | None'\" = None, counterparty_binding: \"'CounterpartyBinding | dict[str, Any] | None'\" = None) -> 'SignatureResponse'",
+        "sign_batch": "(self, actions: 'list[dict[str, Any]]') -> 'list[SignatureResponse | None]'",
+        "sign_output": "(self, action_type: 'str', input_hash: 'str', output: 'Any', context: 'dict[str, Any] | None' = None) -> 'SignatureResponse'",
+        "sign_with_phases": "(agent: 'Any', action_type: 'str', context: 'dict[str, Any] | None' = None, trace_id: 'str | None' = None, result: 'Any' = None) -> 'PhaseChain'",
+        "start_session": "(self) -> 'SessionResponse'",
+        "suspend": "(self, reason: 'str' = 'manual', note: 'str | None' = None) -> 'dict[str, Any]'",
+        "unquarantine": "(self) -> 'dict[str, Any]'",
+        "unsuspend": "(self) -> 'dict[str, Any]'"
+      }
+    },
+    "AgentResponse": {
+      "class": "(agent_id: 'str', name: 'str', public_key: 'str', key_id: 'str', algorithm: 'str', capabilities: 'list[str]', created_at: 'float') -> None",
+      "members": {}
+    },
+    "ApprovalResponse": {
+      "class": "(session_id: 'str', entity_id: 'str', signatures_collected: 'int', approvals_required: 'int', status: 'str', approved: 'bool') -> None",
+      "members": {}
+    },
+    "AsqavConnectionError": {
+      "class": "(message: 'str') -> 'None'",
+      "members": {}
+    },
+    "AsqavError": {
+      "class": "<inherited>",
+      "members": {}
+    },
+    "AsqavResponseError": {
+      "class": "(message: 'str', *, docs_url: 'str') -> 'None'",
+      "members": {}
+    },
+    "AsqavValidationError": {
+      "class": "(message: 'str', *, docs_url: 'str') -> 'None'",
+      "members": {}
+    },
+    "AsyncAgent": {
+      "class": "(agent_id: 'str', name: 'str', public_key: 'str', key_id: 'str', algorithm: 'str', capabilities: 'list[str]', created_at: 'float', _session_id: 'str | None' = None) -> None",
+      "members": {
+        "attach_result": "(self, action_ref: 'str', result: 'bytes | str | dict | list', *, action_type: 'str' = 'protectmcp:observation', result_digest: 'str | None' = None) -> 'SignatureResponse'",
+        "countersign": "(self, signature_id: 'str') -> 'SignatureResponse'",
+        "create": "classmethod (cls, name: 'str', algorithm: 'str' = 'ml-dsa-65', capabilities: 'list[str] | None' = None) -> 'AsyncAgent'",
+        "end_session": "(self, status: 'str' = 'completed') -> 'SessionResponse'",
+        "get": "classmethod (cls, agent_id: 'str') -> 'AsyncAgent'",
+        "preflight": "(self, action_type: 'str') -> 'PreflightResult'",
+        "sign": "(self, action_type: 'str', context: 'dict[str, Any] | None' = None, tool_name: 'str | None' = None, model_name: 'str | None' = None, parent_id: 'str | None' = None, *, co_signers: 'list[str] | None' = None, user_intent: 'dict[str, Any] | None' = None, result_digest: 'str | None' = None, result: 'bytes | str | dict | list | None' = None, receipt_type: 'str | None' = None, action_ref: 'str | None' = None, compliance_mode: 'bool | None' = None) -> 'SignatureResponse'",
+        "start_session": "(self) -> 'SessionResponse'",
+        "verify": "(self, signature_id: 'str') -> 'VerificationResponse'"
+      }
+    },
+    "AuthenticationError": {
+      "class": "<inherited>",
+      "members": {}
+    },
+    "AuthoredBy": {
+      "class": "<inherited>",
+      "members": {}
+    },
+    "BitcoinAnchorStatus": {
+      "class": "(status: 'str', anchor_tx_ref: 'str | None' = None, anchor_block_height: 'int | None' = None) -> None",
+      "members": {
+        "anchor_block_height": "NoneType None",
+        "anchor_tx_ref": "NoneType None"
+      }
+    },
+    "BudgetCheckResult": {
+      "class": "(allowed: 'bool', current_spend: 'float', limit: 'float', remaining: 'float', reason: 'str | None' = None) -> None",
+      "members": {
+        "reason": "NoneType None"
+      }
+    },
+    "BudgetTracker": {
+      "class": "(agent: 'Agent', limit: 'float', currency: 'str' = 'USD')",
+      "members": {
+        "check": "(self, estimated_cost: 'float') -> 'BudgetCheckResult'",
+        "record": "(self, action_type: 'str', actual_cost: 'float', context: 'dict[str, Any] | None' = None) -> 'SignatureResponse'",
+        "status": "(self) -> 'dict[str, Any]'"
+      }
+    },
+    "CAPTURE_TOPOLOGY_NAMESPACE": {
+      "value": "frozenset[\"'browser_extension'\", \"'github_sha_pull'\", \"'in_process_sdk'\", \"'mcp_proxy'\", \"'network_proxy'\", \"'passive_telemetry'\"]"
+    },
+    "CODE_AUTHORSHIP_ASSET_CLASS": {
+      "value": "str 'code'"
+    },
+    "CODE_AUTHORSHIP_DOCS_URL": {
+      "value": "str 'https://asqav.com/docs/code-authorship-receipt'"
+    },
+    "CODE_AUTHORSHIP_PATH": {
+      "value": "str '/code-authorship'"
+    },
+    "CODE_AUTHORSHIP_PREDICATE_TYPE": {
+      "value": "str 'https://asqav.com/attestation/code-authorship/v1'"
+    },
+    "CODE_AUTHORSHIP_WRITE_SCOPE": {
+      "value": "str 'code_authorship:write'"
+    },
+    "CertificateResponse": {
+      "class": "(agent_id: 'str', agent_name: 'str', algorithm: 'str', public_key_pem: 'str', key_id: 'str', created_at: 'float', is_revoked: 'bool') -> None",
+      "members": {}
+    },
+    "CodeAuthorshipResult": {
+      "class": "(envelope: 'dict[str, Any]', receipt: 'dict[str, Any]', kid: 'str | None', jwks_url: 'str | None', server_digest: 'str | None', digest_match: 'bool', subject_digest: 'str | None', capture_layer: 'str | None', asset_class: 'str | None', advisory_client_digest: 'str | None', raw: 'dict[str, Any]' = <factory>) -> None",
+      "members": {
+        "from_response": "classmethod (cls, data: 'dict[str, Any]') -> \"'CodeAuthorshipResult'\"",
+        "subject_matches_server": "property"
+      }
+    },
+    "CodeAuthorshipVerification": {
+      "class": "(verdict: 'str', authoritative: 'bool', observation_only: 'bool', capture_layer: 'str | None', subject_digest: 'str | None', reasons: 'list[str]' = <factory>) -> None",
+      "members": {
+        "passed": "property"
+      }
+    },
+    "ComplianceBundle": {
+      "class": "(framework: str, framework_metadata: dict = <factory>, generated_at: str = '', merkle_root: str = '', receipt_count: int = 0, receipts: list[dict] = <factory>, verification: dict = <factory>) -> None",
+      "members": {
+        "generated_at": "str ''",
+        "merkle_root": "str ''",
+        "receipt_count": "int 0",
+        "to_dict": "(self) -> dict[str, typing.Any]",
+        "to_file": "(self, path: str) -> None",
+        "to_json": "(self) -> str"
+      }
+    },
+    "ComplianceReceiptVerification": {
+      "class": "(valid: 'bool', fields_present: 'bool', receipt_type_in_namespace: 'bool', skew_within_bound: 'bool', chain_link_rederives: 'bool', errors: 'list[str]', counterparty_binding_verified: 'bool | None' = None) -> None",
+      "members": {
+        "counterparty_binding_verified": "NoneType None"
+      }
+    },
+    "CounterpartyBinding": {
+      "class": "(envelope_hash: 'str', receipt_ref: 'str', expect_ack_from: 'str | None' = None, transport_label: 'str | None' = None, scope: 'str | None' = None, profile_version: 'str | None' = None, terms: 'dict[str, Any] | None' = None, terms_digest: 'str | None' = None) -> None",
+      "members": {
+        "expect_ack_from": "NoneType None",
+        "profile_version": "NoneType None",
+        "scope": "NoneType None",
+        "terms": "NoneType None",
+        "terms_digest": "NoneType None",
+        "to_wire": "(self) -> 'dict[str, Any]'",
+        "transport_label": "NoneType None"
+      }
+    },
+    "CounterpartyBindingVerification": {
+      "class": "(valid: 'bool | None', envelope_hash_matches: 'bool | None', kid_matches: 'bool | None', label: 'str | None') -> None",
+      "members": {}
+    },
+    "DEFAULT_RECEIPT_HEADER": {
+      "value": "str 'x-asqav-receipt'"
+    },
+    "DORA_INCIDENT_CLASS_NAMESPACE": {
+      "value": "frozenset[\"'cybersecurity_related'\", \"'external_event'\", \"'other'\", \"'payment_related'\", \"'process_failure'\", \"'system_failure'\"]"
+    },
+    "DelegationResponse": {
+      "class": "(id: 'str', config_id: 'str', delegator_entity_id: 'str', delegate_entity_id: 'str', expires_at: 'str', is_active: 'bool', created_at: 'str') -> None",
+      "members": {}
+    },
+    "DetectorBlockedError": {
+      "class": "(message: 'str', result: 'DetectorResult') -> 'None'",
+      "members": {}
+    },
+    "DetectorPlugin": {
+      "class": "(*args, **kwargs)",
+      "members": {
+        "inspect": "(self, action_type: 'str', context: 'dict[str, Any]') -> 'DetectorResult'"
+      }
+    },
+    "DetectorResult": {
+      "class": "(allow: 'bool', confidence: 'float' = 1.0, labels: 'list[str]' = <factory>, detector: 'str' = '', reason: 'str' = '') -> None",
+      "members": {
+        "as_dict": "(self) -> 'dict[str, Any]'",
+        "confidence": "float 1.0",
+        "detector": "str ''",
+        "reason": "str ''"
+      }
+    },
+    "ExecutionEvidence": {
+      "class": "(present: 'bool', label: 'str', result_digest: 'str | None' = None, result_bound: 'bool' = False, none_by_design: 'bool' = False) -> None",
+      "members": {
+        "none_by_design": "bool False",
+        "result_bound": "bool False",
+        "result_digest": "NoneType None"
+      }
+    },
+    "FAILURE_INVALID": {
+      "value": "str 'invalid'"
+    },
+    "FAILURE_UNVERIFIABLE": {
+      "value": "str 'unverifiable'"
+    },
+    "GroupKeypairResponse": {
+      "class": "(id: 'str', config_id: 'str', public_key_hex: 'str', min_approvals: 'int', total_shares: 'int', created_at: 'str', status: 'str' = 'active') -> None",
+      "members": {
+        "status": "str 'active'"
+      }
+    },
+    "GroupSignResponse": {
+      "class": "(signature_hex: 'str', message_hex: 'str', keypair_id: 'str', verified: 'bool', audit_record_id: 'str | None' = None) -> None",
+      "members": {
+        "audit_record_id": "NoneType None"
+      }
+    },
+    "KeyRefreshResponse": {
+      "class": "(keypair_id: 'str', refreshed_at: 'str', delegations_invalidated: 'int') -> None",
+      "members": {}
+    },
+    "LocalKeypair": {
+      "class": "(algorithm: 'str', private_key_pem: 'bytes', public_key_pem: 'bytes') -> None",
+      "members": {}
+    },
+    "LocalQueue": {
+      "class": "(queue_dir: 'str | None' = None) -> 'None'",
+      "members": {
+        "clear": "(self) -> 'int'",
+        "count": "(self) -> 'int'",
+        "enqueue": "(self, agent_id: 'str', action_type: 'str', context: 'dict[str, Any] | None' = None) -> 'str'",
+        "list_pending": "(self) -> 'list[dict[str, Any]]'",
+        "sync": "(self, on_progress: 'Callable[[str, bool, str | None], Any] | None' = None) -> 'dict[str, Any]'"
+      }
+    },
+    "OBSERVATION_ONLY_CAPTURE_LAYERS": {
+      "value": "frozenset[\"'in_process_sdk'\", \"'passive_telemetry'\"]"
+    },
+    "PATTERNS": {
+      "value": "dict {'sql-read': 'data:read:sql:*', 'sql-write': 'data:write:sql:*', 'sql-destructive': 'data:delete:*', 'file-read': 'file:read:*', 'file-write': 'file:write:*', 'file-delete': 'file:delete:*', 'http-external': 'api:call:external:*', 'shell-execute': 'system:shell:*', 'email-send': 'comms:email:send:*', 'payment-process': 'finance:payment:*', 'pii-access': 'data:read:pii:*', 'admin-action': 'admin:*'}"
+    },
+    "PhaseChain": {
+      "class": "(intent: 'Any', decision: 'Any', execution: 'Any', trace_id: 'str') -> None",
+      "members": {
+        "approved": "property",
+        "to_dict": "(self) -> 'dict'",
+        "to_json": "(self) -> 'str'"
+      }
+    },
+    "PreflightResult": {
+      "class": "(cleared: 'bool', agent_active: 'bool', policy_allowed: 'bool', reasons: 'list[str]', explanation: 'str' = '', checks_complete: 'bool' = True) -> None",
+      "members": {
+        "checks_complete": "bool True",
+        "explanation": "str ''"
+      }
+    },
+    "RECEIPT_TYPE_NAMESPACE": {
+      "value": "frozenset[\"'protectmcp:acknowledgment'\", \"'protectmcp:decision'\", \"'protectmcp:lifecycle'\", \"'protectmcp:lifecycle:code_authorship'\", \"'protectmcp:lifecycle:configuration_change'\", \"'protectmcp:lifecycle:risk_acceptance'\", \"'protectmcp:observation'\", \"'protectmcp:observation:result_bound'\", \"'protectmcp:restraint'\"]"
+    },
+    "RISK_ACCEPTANCE_DOCS_URL": {
+      "value": "str 'https://asqav.com/docs/risk-acceptance-receipt'"
+    },
+    "RateLimitError": {
+      "class": "<inherited>",
+      "members": {}
+    },
+    "ReasoningReceipt": {
+      "class": "(signature: 'Any', prompt_hash: 'str', trace_hash: 'str', output_hash: 'str', raw_stored: 'bool' = False, retention_days: 'int | None' = None) -> None",
+      "members": {
+        "raw_stored": "bool False",
+        "retention_days": "NoneType None",
+        "signature_id": "property",
+        "to_dict": "(self) -> 'dict[str, Any]'",
+        "verification_url": "property"
+      }
+    },
+    "ReplayStep": {
+      "class": "(index: 'int', action_type: 'str', context: 'dict[str, Any] | None', timestamp: 'float', signature_id: 'str', verification_url: 'str', chain_valid: 'bool', explanation: 'str', prev_chain_hash: 'str | None' = None, signed_envelope: 'dict[str, Any] | None' = None) -> None",
+      "members": {
+        "prev_chain_hash": "NoneType None",
+        "signed_envelope": "NoneType None"
+      }
+    },
+    "ReplayTimeline": {
+      "class": "(agent_id: 'str', session_id: 'str', steps: 'list[ReplayStep]' = <factory>, chain_integrity: 'bool' = True, compliance_chain_valid: 'bool' = True, start_time: 'float | None' = None, end_time: 'float | None' = None, total_actions: 'int' = 0) -> None",
+      "members": {
+        "chain_integrity": "bool True",
+        "compliance_chain_valid": "bool True",
+        "end_time": "NoneType None",
+        "start_time": "NoneType None",
+        "summary": "(self) -> 'str'",
+        "to_dict": "(self) -> 'dict[str, Any]'",
+        "to_file": "(self, path: 'str') -> 'None'",
+        "to_json": "(self) -> 'str'",
+        "total_actions": "int 0",
+        "verify_chain": "(self) -> 'bool'"
+      }
+    },
+    "RiskRuleResponse": {
+      "class": "(id: 'str', name: 'str', action_pattern: 'str', risk_level: 'str', approval_override: 'int | None', priority: 'int', entity_weights: 'dict[str, float] | None' = None, time_schedule: 'dict[str, Any] | None' = None, created_at: 'str' = '') -> None",
+      "members": {
+        "created_at": "str ''",
+        "entity_weights": "NoneType None",
+        "time_schedule": "NoneType None"
+      }
+    },
+    "RiskSnapshot": {
+      "class": "<inherited>",
+      "members": {}
+    },
+    "SDTokenResponse": {
+      "class": "(token: 'str', jwt: 'str', disclosures: 'dict[str, str]', expires_at: 'float') -> None",
+      "members": {
+        "full": "(self) -> 'str'",
+        "present": "(self, disclose: 'list[str]') -> 'str'"
+      }
+    },
+    "SKEW_BOUND_SECONDS": {
+      "value": "int 300"
+    },
+    "SUPPORTED_ALGORITHMS": {
+      "value": "frozenset[\"'ed25519'\", \"'es256'\"]"
+    },
+    "ScopeToken": {
+      "class": "(token: 'str', jwt: 'str', disclosures: 'dict[str, str]', expires_at: 'float', actions: 'list[str]', agent_id: 'str', nonce: 'str' = '', metadata: 'dict[str, Any]' = <factory>) -> None",
+      "members": {
+        "from_dict": "classmethod (cls, data: 'dict[str, Any]') -> 'ScopeToken'",
+        "is_expired": "(self) -> 'bool'",
+        "nonce": "str ''",
+        "present": "(self, disclose: 'list[str]') -> 'str'",
+        "to_dict": "(self) -> 'dict[str, Any]'",
+        "to_header": "(self, disclose: 'list[str] | None' = None) -> 'dict[str, str]'"
+      }
+    },
+    "SessionResponse": {
+      "class": "(session_id: 'str', agent_id: 'str', status: 'str', started_at: 'str', ended_at: 'str | None' = None) -> None",
+      "members": {
+        "ended_at": "NoneType None"
+      }
+    },
+    "ShareRecoveryResponse": {
+      "class": "(keypair_id: 'str', recovered_entity_id: 'str', recovered_at: 'str') -> None",
+      "members": {}
+    },
+    "SignatureDetail": {
+      "class": "(entity_id: 'str', entity_name: 'str', entity_class: 'str', signed_at: 'str') -> None",
+      "members": {}
+    },
+    "SignatureResponse": {
+      "class": "(signature: 'str | dict[str, str]', signature_id: 'str', action_id: 'str', timestamp: 'float', verification_url: 'str', algorithm: 'str | None' = None, chain_hash: 'str | None' = None, rfc3161_tsa: 'str | None' = None, rfc3161_serial: 'str | None' = None, scan_result: 'dict[str, Any] | None' = None, policy_digest: 'str | None' = None, policy_decision: 'str' = 'permit', authorization_ref: 'str | None' = None, bitcoin_anchor: 'BitcoinAnchor | None' = None, required_co_signers: 'list[str] | None' = None, co_signatures: 'list[dict[str, Any]] | None' = None, countersign_url: 'str | None' = None, user_intent_verified: 'bool | None' = None, compliance_mode: 'bool' = False, receipt_type: 'str | None' = None, action_ref: 'str | None' = None, payload_digest: 'str | dict[str, Any] | None' = None, issuer_id: 'str | None' = None, iteration_id: 'str | None' = None, sandbox_state: 'str | None' = None, risk_class: 'str | None' = None, incident_class: 'str | list[str] | None' = None, reason: 'str | None' = None, previous_receipt_hash: 'str | None' = None, decision: 'str | None' = None, payload: 'dict[str, Any] | None' = None, anchors: 'list[dict[str, Any]] | None' = None) -> None",
+      "members": {
+        "action_ref": "NoneType None",
+        "algorithm": "NoneType None",
+        "anchors": "NoneType None",
+        "anchors_array": "(self) -> 'list[dict[str, Any]] | None'",
+        "authorization_ref": "NoneType None",
+        "bitcoin_anchor": "NoneType None",
+        "chain_hash": "NoneType None",
+        "co_signatures": "NoneType None",
+        "compliance_mode": "bool False",
+        "countersign_url": "NoneType None",
+        "decision": "NoneType None",
+        "incident_class": "NoneType None",
+        "issuer_id": "NoneType None",
+        "iteration_id": "NoneType None",
+        "payload": "NoneType None",
+        "payload_digest": "NoneType None",
+        "policy_decision": "str 'permit'",
+        "policy_digest": "NoneType None",
+        "previous_receipt_hash": "NoneType None",
+        "reason": "NoneType None",
+        "receipt": "(self) -> 'dict[str, Any] | None'",
+        "receipt_type": "NoneType None",
+        "required_co_signers": "NoneType None",
+        "rfc3161_serial": "NoneType None",
+        "rfc3161_tsa": "NoneType None",
+        "risk_class": "NoneType None",
+        "sandbox_state": "NoneType None",
+        "scan_result": "NoneType None",
+        "signature_envelope": "(self) -> 'dict[str, str] | None'",
+        "user_intent_verified": "NoneType None"
+      }
+    },
+    "SignedActionResponse": {
+      "class": "(signature_id: 'str', agent_id: 'str', action_id: 'str', action_type: 'str', payload: 'dict[str, Any] | None', algorithm: 'str', signed_at: 'float', signature_preview: 'str', verification_url: 'str') -> None",
+      "members": {}
+    },
+    "SigningEntityResponse": {
+      "class": "(id: 'str', config_id: 'str', entity_class: 'str', label: 'str', is_active: 'bool', created_at: 'str') -> None",
+      "members": {}
+    },
+    "SigningGroupResponse": {
+      "class": "(id: 'str', agent_id: 'str', min_approvals: 'int', total_shares: 'int', is_active: 'bool', created_at: 'str', updated_at: 'str | None' = None) -> None",
+      "members": {
+        "updated_at": "NoneType None"
+      }
+    },
+    "SigningSessionResponse": {
+      "class": "(session_id: 'str', config_id: 'str', agent_id: 'str', action_type: 'str', action_params: 'dict[str, Any] | None', approvals_required: 'int', signatures_collected: 'int', status: 'str', signatures: 'list[SignatureDetail]', policy_attestation_hash: 'str | None', created_at: 'str', expires_at: 'str', resolved_at: 'str | None' = None) -> None",
+      "members": {
+        "resolved_at": "NoneType None"
+      }
+    },
+    "Span": {
+      "class": "(span_id: 'str', name: 'str', start_time: 'float', attributes: 'dict[str, Any]' = <factory>, parent_id: 'str | None' = None, end_time: 'float | None' = None, status: 'str' = 'ok', signature: 'str | None' = None) -> None",
+      "members": {
+        "end_time": "NoneType None",
+        "parent_id": "NoneType None",
+        "set_attribute": "(self, key: 'str', value: 'Any') -> 'None'",
+        "set_status": "(self, status: 'str') -> 'None'",
+        "signature": "NoneType None",
+        "status": "str 'ok'"
+      }
+    },
+    "TokenResponse": {
+      "class": "(token: 'str', expires_at: 'float', algorithm: 'str') -> None",
+      "members": {}
+    },
+    "VERDICT_UNVERIFIED": {
+      "value": "str 'unverified'"
+    },
+    "VERDICT_VERIFIED_KEYED": {
+      "value": "str 'verified_keyed'"
+    },
+    "VerificationDetail": {
+      "class": "(signer_key_match: 'bool', signature_valid: 'bool', algorithm_match: 'bool', agent_active: 'bool', validation_label: 'str', signed_at_skew_seconds: 'float | None' = None, chain_valid: 'bool | None' = None, anchor_valid_ots: 'bool | None' = None, anchor_valid_rfc3161: 'bool | None' = None, anchor_status_ots: 'str | None' = None, anchor_status_rfc3161: 'str | None' = None, anchor_independent_rfc3161: 'str | None' = None, missing_fields: 'list[str] | None' = None, policy_digest_resolved: 'bool | None' = None, duplicate_emission_candidate: 'bool | None' = None, regimes_satisfied: 'list[str]' = <factory>) -> None",
+      "members": {
+        "anchor_independent_rfc3161": "NoneType None",
+        "anchor_status_ots": "NoneType None",
+        "anchor_status_rfc3161": "NoneType None",
+        "anchor_valid_ots": "NoneType None",
+        "anchor_valid_rfc3161": "NoneType None",
+        "chain_valid": "NoneType None",
+        "duplicate_emission_candidate": "NoneType None",
+        "missing_fields": "NoneType None",
+        "policy_digest_resolved": "NoneType None",
+        "signed_at_skew_seconds": "NoneType None"
+      }
+    },
+    "VerificationResponse": {
+      "class": "(signature_id: 'str', agent_id: 'str', agent_name: 'str', action_id: 'str', action_type: 'str', payload: 'dict[str, Any] | None', signature: 'str', algorithm: 'str', signed_at: 'float', verified: 'bool', verification_url: 'str', verification_detail: 'VerificationDetail | None' = None, execution_evidence: 'ExecutionEvidence | None' = None, type: 'str' = 'signature', bitcoin_anchor: 'BitcoinAnchorStatus | None' = None, signature_envelope: 'dict[str, str] | None' = None, anchors: 'list[dict[str, Any]] | None' = None, algorithm_registry_version: 'str | None' = None) -> None",
+      "members": {
+        "algorithm_registry_version": "NoneType None",
+        "anchors": "NoneType None",
+        "bitcoin_anchor": "NoneType None",
+        "execution_evidence": "NoneType None",
+        "signature_envelope": "NoneType None",
+        "type": "str 'signature'",
+        "verification_detail": "NoneType None"
+      }
+    },
+    "add_entity": {
+      "function": "(config_id: 'str', entity_class: 'str', label: 'str') -> 'SigningEntityResponse'"
+    },
+    "approve_action": {
+      "function": "(session_id: 'str', entity_id: 'str') -> 'ApprovalResponse'"
+    },
+    "async_session": {
+      "function": "() -> 'AsyncGenerator[Session, None]'"
+    },
+    "canonical_json": {
+      "function": "(obj: 'Any') -> 'bytes'"
+    },
+    "canonicalize": {
+      "function": "(obj: 'Any') -> 'bytes'"
+    },
+    "canonicalize_tool_args": {
+      "function": "(args: 'dict[str, Any] | list[Any]') -> 'bytes'"
+    },
+    "check_peer_receipt": {
+      "function": "(receipt: 'dict', *, key_provider: 'Any' = None, predecessor: 'dict | None' = None, challenge: 'str | None' = None, now: 'datetime | None' = None) -> 'AcceptorDecision'"
+    },
+    "clear_detectors": {
+      "function": "() -> 'None'"
+    },
+    "clear_hooks": {
+      "function": "() -> 'None'"
+    },
+    "commit": {
+      "function": "(key: 'bytes', opening: 'bytes', label: 'str', version: 'int', data: 'bytes') -> 'str'"
+    },
+    "compute_advisory_digest": {
+      "function": "(base_sha: 'str | None', head_sha: 'str', diff_text: 'str | None' = None) -> 'str'"
+    },
+    "compute_counterparty_binding": {
+      "function": "(originating_envelope: 'dict[str, Any]', *, receipt_ref: 'str | None' = None, expect_ack_from: 'str | None' = None, transport_label: 'str | None' = None, profile_version: 'str | None' = None, terms: 'dict[str, Any] | None' = None) -> 'CounterpartyBinding'"
+    },
+    "compute_statement_hash": {
+      "function": "(claim: 'dict[str, Any]', commitment: 'str', key_id: 'str', timestamp: 'str', commitment_alg: 'str' = 'HMAC-SHA256') -> 'str'"
+    },
+    "configure_otel": {
+      "function": "(endpoint: 'str | None' = None) -> 'None'"
+    },
+    "create_delegation": {
+      "function": "(config_id: 'str', delegator_entity_id: 'str', delegate_entity_id: 'str', expires_in: 'int' = 86400) -> 'DelegationResponse'"
+    },
+    "create_risk_rule": {
+      "function": "(name: 'str', action_pattern: 'str', risk_level: 'str', approval_override: 'int | None' = None, priority: 'int' = 0, entity_weights: 'dict[str, float] | None' = None, time_schedule: 'dict[str, Any] | None' = None) -> 'RiskRuleResponse'"
+    },
+    "create_scope_token": {
+      "function": "(agent: 'Agent', actions: 'list[str]', ttl: 'int' = 3600, metadata: 'dict[str, Any] | None' = None) -> 'ScopeToken'"
+    },
+    "create_signing_group": {
+      "function": "(agent_id: 'str', min_approvals: 'int', total_shares: 'int') -> 'SigningGroupResponse'"
+    },
+    "delete_risk_rule": {
+      "function": "(rule_id: 'str') -> 'dict[str, Any]'"
+    },
+    "emergency_halt": {
+      "function": "(org_id: 'str', reason: 'str' = 'emergency') -> 'dict'"
+    },
+    "encode_receipt_header": {
+      "function": "(receipt: 'dict') -> 'str'"
+    },
+    "export_audit_csv": {
+      "function": "(start_date: 'str | None' = None, end_date: 'str | None' = None, agent_id: 'str | None' = None) -> 'str'"
+    },
+    "export_audit_json": {
+      "function": "(start_date: 'str | None' = None, end_date: 'str | None' = None, agent_id: 'str | None' = None) -> 'dict[str, Any]'"
+    },
+    "export_bundle": {
+      "function": "(signatures: list, framework: str = 'eu_ai_act') -> asqav.compliance.ComplianceBundle"
+    },
+    "export_spans": {
+      "function": "() -> 'list[dict[str, Any]]'"
+    },
+    "fetch_audit_pack": {
+      "function": "(*, start: str, end: str, agent_id: str | None = None, only_compliance: bool = True) -> dict[str, typing.Any]"
+    },
+    "fetch_jwks": {
+      "function": "(url: 'str' = 'https://api.asqav.com/.well-known/jwks.json', *, timeout: 'int' = 30) -> 'dict'"
+    },
+    "flush_spans": {
+      "function": "() -> 'None'"
+    },
+    "generate_attestation": {
+      "function": "(agent_id: 'str', session_id: 'str | None' = None, format: 'str' = 'json') -> 'dict[str, Any]'"
+    },
+    "generate_keypair": {
+      "function": "(config_id: 'str') -> 'GroupKeypairResponse'"
+    },
+    "generate_local_keypair": {
+      "function": "(algorithm: 'Algorithm' = 'ed25519') -> 'LocalKeypair'"
+    },
+    "generate_trace_id": {
+      "function": "() -> 'str'"
+    },
+    "get_action_status": {
+      "function": "(session_id: 'str') -> 'SigningSessionResponse'"
+    },
+    "get_agent": {
+      "function": "() -> 'Agent'"
+    },
+    "get_current_span": {
+      "function": "() -> 'Span | None'"
+    },
+    "get_delegation": {
+      "function": "(delegation_id: 'str') -> 'DelegationResponse'"
+    },
+    "get_keypair": {
+      "function": "(keypair_id: 'str') -> 'GroupKeypairResponse'"
+    },
+    "get_risk_rule": {
+      "function": "(rule_id: 'str') -> 'RiskRuleResponse'"
+    },
+    "get_session_signatures": {
+      "function": "(session_id: 'str') -> 'list[SignedActionResponse]'"
+    },
+    "get_signing_group": {
+      "function": "(agent_id: 'str') -> 'SigningGroupResponse'"
+    },
+    "govern": {
+      "function": "(api_key: 'str | None' = None, agent_name: 'str' = 'default-agent', agent_id: 'str | None' = None, *, algorithm: 'str' = 'ml-dsa-65', capabilities: 'list[str] | None' = None, base_url: 'str | None' = None, mode: 'str' = 'auto', org_salt: 'bytes | None' = None) -> \"'Agent'\""
+    },
+    "group_sign": {
+      "function": "(keypair_id: 'str', message_hex: 'str') -> 'GroupSignResponse'"
+    },
+    "hash_action": {
+      "function": "(action_type: 'str', context: 'dict[str, Any] | None' = None, salt: 'bytes | None' = None) -> 'str'"
+    },
+    "health_check": {
+      "function": "() -> 'dict[str, Any]'"
+    },
+    "init": {
+      "function": "(api_key: 'str | None' = None, base_url: 'str | None' = None, *, mode: 'str' = 'auto', org_salt: 'bytes | None' = None, timeout: 'float | None' = None) -> 'None'"
+    },
+    "is_replay": {
+      "function": "(nonce: 'str', seen_nonces: 'set[str]') -> 'bool'"
+    },
+    "list_agents": {
+      "function": "() -> 'list[Agent]'"
+    },
+    "list_delegations": {
+      "function": "() -> 'list[DelegationResponse]'"
+    },
+    "list_entities": {
+      "function": "(config_id: 'str') -> 'list[SigningEntityResponse]'"
+    },
+    "list_patterns": {
+      "function": "() -> 'dict[str, str]'"
+    },
+    "list_rejected_attempts": {
+      "function": "(*, failure_reason: 'str | None' = None, agent_id: 'str | None' = None, hours: 'int' = 24, limit: 'int' = 100, offset: 'int' = 0) -> 'dict[str, Any]'"
+    },
+    "list_risk_rules": {
+      "function": "() -> 'list[RiskRuleResponse]'"
+    },
+    "list_sessions": {
+      "function": "(status: 'str | None' = None, agent_id: 'str | None' = None, limit: 'int' = 100) -> 'list[SigningSessionResponse]'"
+    },
+    "local_sign": {
+      "function": "(agent_id: 'str', action_type: 'str', context: 'dict[str, Any] | None' = None, queue_dir: 'str | None' = None) -> 'str'"
+    },
+    "new_opening": {
+      "function": "() -> 'bytes'"
+    },
+    "normalize_context": {
+      "function": "(context: 'dict[str, Any] | None') -> 'dict[str, Any] | None'"
+    },
+    "post_applied_attestation": {
+      "function": "(signature_id: 'str', *, applied_at: 'str', outcome: 'str', executor_pubkey_b64: 'str', executor_algorithm: 'str', signature_b64: 'str', error_code: 'str | None' = None) -> 'dict[str, Any]'"
+    },
+    "reconstruct_signed_message": {
+      "function": "(*, statement_hash: 'str', commitment: 'str', commitment_alg: 'str', key_id: 'str', claim_type: 'str', server_timestamp: 'str', action_id: 'str', agent_id: 'str', org_id: 'str') -> 'bytes'"
+    },
+    "recover_share": {
+      "function": "(keypair_id: 'str', entity_id: 'str', contributing_entity_ids: 'list[str]') -> 'ShareRecoveryResponse'"
+    },
+    "refresh_keypair": {
+      "function": "(keypair_id: 'str') -> 'KeyRefreshResponse'"
+    },
+    "register_after": {
+      "function": "(pattern: 'PatternType', fn: 'AfterHook') -> 'None'"
+    },
+    "register_before": {
+      "function": "(pattern: 'PatternType', fn: 'BeforeHook') -> 'None'"
+    },
+    "register_detector": {
+      "function": "(detector: 'DetectorPlugin', *, fail_open: 'bool' = False) -> 'None'"
+    },
+    "remove_entity": {
+      "function": "(entity_id: 'str') -> 'dict[str, Any]'"
+    },
+    "replay": {
+      "function": "(agent_id: 'str', session_id: 'str') -> 'ReplayTimeline'"
+    },
+    "replay_from_bundle": {
+      "function": "(bundle: 'ComplianceBundle') -> 'ReplayTimeline'"
+    },
+    "request_action": {
+      "function": "(agent_id: 'str', action_type: 'str', params: 'dict[str, Any] | None' = None) -> 'SigningSessionResponse'"
+    },
+    "resolve_pattern": {
+      "function": "(pattern: 'str') -> 'str'"
+    },
+    "revoke_delegation": {
+      "function": "(delegation_id: 'str') -> 'dict[str, Any]'"
+    },
+    "secure": {
+      "function": "(func: 'F') -> 'F'"
+    },
+    "secure_async": {
+      "function": "(func: 'F') -> 'F'"
+    },
+    "session": {
+      "function": "() -> 'Generator[Session, None, None]'"
+    },
+    "sign": {
+      "function": "(func: 'Any' = None, *, action_type: 'str | None' = None) -> 'Any'"
+    },
+    "sign_reasoning": {
+      "function": "(agent: 'Any', prompt: 'Any', trace: 'Any', output: 'Any', action_type: 'str' = 'ai:reasoning', context: 'dict[str, Any] | None' = None, trace_id: 'str | None' = None, parent_id: 'str | None' = None, store_raw: 'bool' = False, retention_days: 'int | None' = None) -> 'ReasoningReceipt'"
+    },
+    "sign_with_phases": {
+      "function": "(agent: 'Any', action_type: 'str', context: 'dict[str, Any] | None' = None, trace_id: 'str | None' = None, result: 'Any' = None) -> 'PhaseChain'"
+    },
+    "span": {
+      "function": "(name: 'str', attributes: 'dict[str, Any] | None' = None) -> 'Generator[Span, None, None]'"
+    },
+    "submit_code_authorship": {
+      "function": "(*, repo: 'str', commit_sha: 'str', base_sha: 'str | None' = None, change_digest: 'str | None' = None, change_class: 'str | None' = None, author: 'str | None' = None, anchor: 'str | None' = None) -> 'CodeAuthorshipResult'"
+    },
+    "update_risk_rule": {
+      "function": "(rule_id: 'str', **kwargs: 'Any') -> 'RiskRuleResponse'"
+    },
+    "update_signing_group": {
+      "function": "(config_id: 'str', min_approvals: 'int | None' = None, is_active: 'bool | None' = None) -> 'SigningGroupResponse'"
+    },
+    "validate_context_schema": {
+      "function": "(context: 'dict[str, Any] | None', schema: 'dict[str, Any]') -> 'None'"
+    },
+    "verify": {
+      "function": "(signature_id: 'str') -> 'dict[str, Any]'"
+    },
+    "verify_attestation": {
+      "function": "(attestation: 'dict[str, Any]') -> 'dict[str, Any]'"
+    },
+    "verify_attestation_offline": {
+      "function": "(claim: 'dict[str, Any]', receipt: 'dict[str, Any]', *, signed_message: 'bytes | None' = None, verify_signature: 'Callable[[bytes, bytes], bool] | None' = None, signed_tree_head: 'bytes | None' = None, commitment_alg: 'str' = 'HMAC-SHA256') -> 'dict[str, Any]'"
+    },
+    "verify_code_authorship_envelope": {
+      "function": "(envelope: 'dict[str, Any]') -> 'CodeAuthorshipVerification'"
+    },
+    "verify_compliance_receipt": {
+      "function": "(envelope: 'dict[str, Any]', *, predecessor_envelope: 'dict[str, Any] | None' = None, originating_envelope: 'dict[str, Any] | None' = None, now: 'float | None' = None) -> 'ComplianceReceiptVerification'"
+    },
+    "verify_counterparty_binding": {
+      "function": "(acknowledgment_envelope: 'dict[str, Any]', originating_envelope: 'dict[str, Any] | None' = None) -> 'CounterpartyBindingVerification'"
+    },
+    "verify_merkle_inclusion": {
+      "function": "(leaf: 'bytes', index: 'int', tree_size: 'int', proof: 'list[bytes]', root: 'bytes') -> 'bool'"
+    },
+    "verify_output": {
+      "function": "(signature_id: 'str', expected_output: 'Any') -> 'dict[str, Any]'"
+    },
+    "verify_receipt_offline": {
+      "function": "(receipt: dict, jwks: dict, *, predecessor: dict | None = None, originating_envelope: dict | None = None) -> dict"
+    },
+    "verify_scope_token": {
+      "function": "(signature_id: 'str') -> 'dict[str, Any]'"
+    },
+    "verify_signature": {
+      "function": "(signature_id: 'str') -> 'VerificationResponse'"
+    },
+    "with_async_retry": {
+      "function": "(max_retries: 'int' = 3, base_delay: 'float' = 0.5, max_delay: 'float' = 30.0, jitter: 'bool' = True) -> 'Callable[[F], F]'"
+    },
+    "with_retry": {
+      "function": "(max_retries: 'int' = 3, base_delay: 'float' = 0.5, max_delay: 'float' = 30.0, jitter: 'bool' = True) -> 'Callable[[F], F]'"
+    }
+  },
+  "asqav.client": {
+    "ACKNOWLEDGMENT_RECEIPT_TYPE": {
+      "value": "str 'protectmcp:acknowledgment'"
+    },
+    "APIError": {
+      "class": "(message: 'str', status_code: 'int | None' = None) -> 'None'",
+      "members": {}
+    },
+    "Agent": {
+      "class": "(agent_id: 'str', name: 'str', public_key: 'str', key_id: 'str', algorithm: 'str', capabilities: 'list[str]', created_at: 'float', _session_id: 'str | None' = None) -> None",
+      "members": {
+        "acknowledge": "(self, peer_receipt: 'dict[str, Any]', *, receipt_ref: 'str | None' = None, action_type: 'str' = 'a2a:acknowledge', context: 'dict[str, Any] | None' = None, expect_ack_from: 'str | None' = None, transport_label: 'str | None' = None, profile_version: 'str | None' = None, terms: 'dict[str, Any] | None' = None) -> 'SignatureResponse'",
+        "attach_result": "(self, action_ref: 'str', result: 'bytes | str | dict | list', *, action_type: 'str' = 'protectmcp:observation', tool_name: 'str | None' = None, result_digest: 'str | None' = None, compliance_mode: 'bool' = True) -> 'SignatureResponse'",
+        "countersign": "(self, signature_id: 'str') -> 'SignatureResponse'",
+        "create": "classmethod (cls, name: 'str', algorithm: 'str' = 'ml-dsa-65', capabilities: 'list[str] | None' = None) -> 'Agent'",
+        "create_scope_token": "(self, actions: 'list[str]', ttl: 'int' = 3600, metadata: 'dict[str, Any] | None' = None) -> \"'ScopeToken'\"",
+        "decommission": "(self, reason: 'str' = 'manual') -> 'dict[str, Any]'",
+        "delegate": "(self, name: 'str', scope: 'list[str] | None' = None, ttl: 'int' = 86400) -> \"'Agent'\"",
+        "end_session": "(self, status: 'str' = 'completed') -> 'SessionResponse'",
+        "get": "classmethod (cls, agent_id: 'str') -> 'Agent'",
+        "get_certificate": "(self) -> 'CertificateResponse'",
+        "get_session_signatures": "(self) -> 'list[SignedActionResponse]'",
+        "is_revoked": "property",
+        "is_suspended": "property",
+        "issue_sd_token": "(self, claims: 'dict[str, Any] | None' = None, disclosable: 'list[str] | None' = None, ttl: 'int' = 3600) -> 'SDTokenResponse'",
+        "issue_token": "(self, scope: 'list[str] | None' = None, ttl: 'int' = 3600) -> 'TokenResponse'",
+        "preflight": "(self, action_type: 'str') -> 'PreflightResult'",
+        "quarantine": "(self) -> 'dict[str, Any]'",
+        "revoke": "(self, reason: 'str' = 'manual') -> 'None'",
+        "sign": "(self, action_type: 'str', context: 'dict[str, Any] | None' = None, system_prompt_hash: 'str | None' = None, model_params: 'dict | None' = None, tool_inputs_hash: 'str | None' = None, trace_id: 'str | None' = None, parent_id: 'str | None' = None, counterparty: 'dict[str, Any] | None' = None, tool_name: 'str | None' = None, model_name: 'str | None' = None, *, context_schema: \"'dict[str, Any] | Callable[[dict[str, Any]], None] | None'\" = None, co_signers: 'list[str] | None' = None, mandate_id: 'str | None' = None, user_intent: 'dict[str, Any] | None' = None, nonce: 'str | None' = None, valid_seconds: 'int | None' = None, expected_executor_pubkey_b64: 'str | None' = None, compliance_mode: 'bool' = True, receipt_type: 'str | None' = None, action_ref: 'str | None' = None, payload_digest: 'str | dict[str, Any] | None' = None, issuer_id: 'str | None' = None, iteration_id: 'str | None' = None, sandbox_state: 'str | None' = None, risk_class: 'str | None' = None, incident_class: 'str | list[str] | None' = None, reason: 'str | None' = None, policy_decision: 'str' = 'permit', capture_topology: 'str | None' = None, result_digest: 'str | None' = None, result: 'bytes | str | dict | list | None' = None, expires_at: 'str | float | None' = None, tool_schema: 'dict[str, Any] | None' = None, tool_fingerprint: 'str | None' = None, config_manifest_digest: 'str | None' = None, cve_inventory_digest: 'str | None' = None, executable_hash: 'str | None' = None, sbom_digest: 'str | None' = None, slsa_provenance_pointer: 'str | None' = None, supply_chain_pointer: 'str | None' = None, mitre_techniques: 'list[str] | None' = None, mitre_atlas: 'list[str] | None' = None, owasp_llm_top10: 'list[str] | None' = None, owasp_agentic_top10: 'list[str] | None' = None, nist_ai_rmf: 'list[str] | None' = None, iso_42001: 'list[str] | None' = None, eu_ai_act_articles: 'list[str] | None' = None, rfc3161_timestamp: 'str | None' = None, witness_policy: 'dict[str, Any] | None' = None, approver_id: 'str | None' = None, initiator_id: 'str | None' = None, acceptance_reason: 'str | None' = None, accepted_at: 'str | None' = None, supersedes: 'str | None' = None, sarif_digest: 'str | None' = None, finding_ref: 'str | None' = None, approval_ref: 'str | None' = None, risk_snapshot: \"'RiskSnapshot | dict[str, Any] | None'\" = None, invocation_ref: 'str | None' = None, repo_ref: 'str | None' = None, commit_sha: 'str | None' = None, base_sha: 'str | None' = None, change_digest: 'str | None' = None, change_ref: 'str | None' = None, change_approval_ref: 'str | None' = None, change_class: 'str | None' = None, authored_by: \"'AuthoredBy | dict[str, Any] | None'\" = None, counterparty_binding: \"'CounterpartyBinding | dict[str, Any] | None'\" = None) -> 'SignatureResponse'",
+        "sign_batch": "(self, actions: 'list[dict[str, Any]]') -> 'list[SignatureResponse | None]'",
+        "sign_output": "(self, action_type: 'str', input_hash: 'str', output: 'Any', context: 'dict[str, Any] | None' = None) -> 'SignatureResponse'",
+        "sign_with_phases": "(agent: 'Any', action_type: 'str', context: 'dict[str, Any] | None' = None, trace_id: 'str | None' = None, result: 'Any' = None) -> 'PhaseChain'",
+        "start_session": "(self) -> 'SessionResponse'",
+        "suspend": "(self, reason: 'str' = 'manual', note: 'str | None' = None) -> 'dict[str, Any]'",
+        "unquarantine": "(self) -> 'dict[str, Any]'",
+        "unsuspend": "(self) -> 'dict[str, Any]'"
+      }
+    },
+    "AgentResponse": {
+      "class": "(agent_id: 'str', name: 'str', public_key: 'str', key_id: 'str', algorithm: 'str', capabilities: 'list[str]', created_at: 'float') -> None",
+      "members": {}
+    },
+    "ApprovalResponse": {
+      "class": "(session_id: 'str', entity_id: 'str', signatures_collected: 'int', approvals_required: 'int', status: 'str', approved: 'bool') -> None",
+      "members": {}
+    },
+    "AsqavConnectionError": {
+      "class": "(message: 'str') -> 'None'",
+      "members": {}
+    },
+    "AsqavError": {
+      "class": "<inherited>",
+      "members": {}
+    },
+    "AsqavResponseError": {
+      "class": "(message: 'str', *, docs_url: 'str') -> 'None'",
+      "members": {}
+    },
+    "AsqavValidationError": {
+      "class": "(message: 'str', *, docs_url: 'str') -> 'None'",
+      "members": {}
+    },
+    "AuthenticationError": {
+      "class": "<inherited>",
+      "members": {}
+    },
+    "AuthoredBy": {
+      "class": "<inherited>",
+      "members": {}
+    },
+    "BitcoinAnchor": {
+      "class": "(status: 'str', anchor_tx_ref: 'str | None' = None, anchor_block_height: 'int | None' = None) -> None",
+      "members": {
+        "anchor_block_height": "NoneType None",
+        "anchor_tx_ref": "NoneType None"
+      }
+    },
+    "BitcoinAnchorStatus": {
+      "class": "(status: 'str', anchor_tx_ref: 'str | None' = None, anchor_block_height: 'int | None' = None) -> None",
+      "members": {
+        "anchor_block_height": "NoneType None",
+        "anchor_tx_ref": "NoneType None"
+      }
+    },
+    "BudgetCheckResult": {
+      "class": "(allowed: 'bool', current_spend: 'float', limit: 'float', remaining: 'float', reason: 'str | None' = None) -> None",
+      "members": {
+        "reason": "NoneType None"
+      }
+    },
+    "BudgetTracker": {
+      "class": "(agent: 'Agent', limit: 'float', currency: 'str' = 'USD')",
+      "members": {
+        "check": "(self, estimated_cost: 'float') -> 'BudgetCheckResult'",
+        "record": "(self, action_type: 'str', actual_cost: 'float', context: 'dict[str, Any] | None' = None) -> 'SignatureResponse'",
+        "status": "(self) -> 'dict[str, Any]'"
+      }
+    },
+    "CAPTURE_TOPOLOGY_NAMESPACE": {
+      "value": "frozenset[\"'browser_extension'\", \"'github_sha_pull'\", \"'in_process_sdk'\", \"'mcp_proxy'\", \"'network_proxy'\", \"'passive_telemetry'\"]"
+    },
+    "CODE_AUTHORSHIP_DOCS_URL": {
+      "value": "str 'https://asqav.com/docs/code-authorship-receipt'"
+    },
+    "CaptureTopology": {
+      "value": "_LiteralGenericAlias"
+    },
+    "CertificateResponse": {
+      "class": "(agent_id: 'str', agent_name: 'str', algorithm: 'str', public_key_pem: 'str', key_id: 'str', created_at: 'float', is_revoked: 'bool') -> None",
+      "members": {}
+    },
+    "ComplianceReceiptVerification": {
+      "class": "(valid: 'bool', fields_present: 'bool', receipt_type_in_namespace: 'bool', skew_within_bound: 'bool', chain_link_rederives: 'bool', errors: 'list[str]', counterparty_binding_verified: 'bool | None' = None) -> None",
+      "members": {
+        "counterparty_binding_verified": "NoneType None"
+      }
+    },
+    "CounterpartyBinding": {
+      "class": "(envelope_hash: 'str', receipt_ref: 'str', expect_ack_from: 'str | None' = None, transport_label: 'str | None' = None, scope: 'str | None' = None, profile_version: 'str | None' = None, terms: 'dict[str, Any] | None' = None, terms_digest: 'str | None' = None) -> None",
+      "members": {
+        "expect_ack_from": "NoneType None",
+        "profile_version": "NoneType None",
+        "scope": "NoneType None",
+        "terms": "NoneType None",
+        "terms_digest": "NoneType None",
+        "to_wire": "(self) -> 'dict[str, Any]'",
+        "transport_label": "NoneType None"
+      }
+    },
+    "DECISION_MAP": {
+      "value": "dict {'permit': 'allow', 'allow': 'allow', 'deny': 'deny', 'rate_limit': 'rate_limit', 'none': 'observation'}"
+    },
+    "DORA_INCIDENT_CLASS_NAMESPACE": {
+      "value": "frozenset[\"'cybersecurity_related'\", \"'external_event'\", \"'other'\", \"'payment_related'\", \"'process_failure'\", \"'system_failure'\"]"
+    },
+    "Decision": {
+      "value": "_LiteralGenericAlias"
+    },
+    "DelegationResponse": {
+      "class": "(id: 'str', config_id: 'str', delegator_entity_id: 'str', delegate_entity_id: 'str', expires_at: 'str', is_active: 'bool', created_at: 'str') -> None",
+      "members": {}
+    },
+    "ExecutionEvidence": {
+      "class": "(present: 'bool', label: 'str', result_digest: 'str | None' = None, result_bound: 'bool' = False, none_by_design: 'bool' = False) -> None",
+      "members": {
+        "none_by_design": "bool False",
+        "result_bound": "bool False",
+        "result_digest": "NoneType None"
+      }
+    },
+    "F": {
+      "value": "TypeVar"
+    },
+    "GroupKeypairResponse": {
+      "class": "(id: 'str', config_id: 'str', public_key_hex: 'str', min_approvals: 'int', total_shares: 'int', created_at: 'str', status: 'str' = 'active') -> None",
+      "members": {
+        "status": "str 'active'"
+      }
+    },
+    "GroupSignResponse": {
+      "class": "(signature_hex: 'str', message_hex: 'str', keypair_id: 'str', verified: 'bool', audit_record_id: 'str | None' = None) -> None",
+      "members": {
+        "audit_record_id": "NoneType None"
+      }
+    },
+    "HIPAA_INCIDENT_CLASS_NAMESPACE": {
+      "value": "frozenset[\"'hipaa_security_incident'\"]"
+    },
+    "INCIDENT_CLASS_NAMESPACE": {
+      "value": "frozenset[\"'cybersecurity_related'\", \"'external_event'\", \"'hipaa_security_incident'\", \"'other'\", \"'payment_related'\", \"'process_failure'\", \"'system_failure'\"]"
+    },
+    "KeyRefreshResponse": {
+      "class": "(keypair_id: 'str', refreshed_at: 'str', delegations_invalidated: 'int') -> None",
+      "members": {}
+    },
+    "PolicyDecision": {
+      "value": "_LiteralGenericAlias"
+    },
+    "PreflightResult": {
+      "class": "(cleared: 'bool', agent_active: 'bool', policy_allowed: 'bool', reasons: 'list[str]', explanation: 'str' = '', checks_complete: 'bool' = True) -> None",
+      "members": {
+        "checks_complete": "bool True",
+        "explanation": "str ''"
+      }
+    },
+    "RECEIPT_TYPE_NAMESPACE": {
+      "value": "frozenset[\"'protectmcp:acknowledgment'\", \"'protectmcp:decision'\", \"'protectmcp:lifecycle'\", \"'protectmcp:lifecycle:code_authorship'\", \"'protectmcp:lifecycle:configuration_change'\", \"'protectmcp:lifecycle:risk_acceptance'\", \"'protectmcp:observation'\", \"'protectmcp:observation:result_bound'\", \"'protectmcp:restraint'\"]"
+    },
+    "RESPONSE_ERROR_DOCS_URL": {
+      "value": "str 'https://asqav.com/docs/sdk-errors'"
+    },
+    "RISK_ACCEPTANCE_DOCS_URL": {
+      "value": "str 'https://asqav.com/docs/risk-acceptance-receipt'"
+    },
+    "RateLimitError": {
+      "class": "<inherited>",
+      "members": {}
+    },
+    "RiskRuleResponse": {
+      "class": "(id: 'str', name: 'str', action_pattern: 'str', risk_level: 'str', approval_override: 'int | None', priority: 'int', entity_weights: 'dict[str, float] | None' = None, time_schedule: 'dict[str, Any] | None' = None, created_at: 'str' = '') -> None",
+      "members": {
+        "created_at": "str ''",
+        "entity_weights": "NoneType None",
+        "time_schedule": "NoneType None"
+      }
+    },
+    "RiskSnapshot": {
+      "class": "<inherited>",
+      "members": {}
+    },
+    "SANDBOX_STATE_NAMESPACE": {
+      "value": "frozenset[\"'disabled'\", \"'enabled'\", \"'unavailable'\"]"
+    },
+    "SDTokenResponse": {
+      "class": "(token: 'str', jwt: 'str', disclosures: 'dict[str, str]', expires_at: 'float') -> None",
+      "members": {
+        "full": "(self) -> 'str'",
+        "present": "(self, disclose: 'list[str]') -> 'str'"
+      }
+    },
+    "SKEW_BOUND_SECONDS": {
+      "value": "int 300"
+    },
+    "SessionResponse": {
+      "class": "(session_id: 'str', agent_id: 'str', status: 'str', started_at: 'str', ended_at: 'str | None' = None) -> None",
+      "members": {
+        "ended_at": "NoneType None"
+      }
+    },
+    "ShareRecoveryResponse": {
+      "class": "(keypair_id: 'str', recovered_entity_id: 'str', recovered_at: 'str') -> None",
+      "members": {}
+    },
+    "SignatureDetail": {
+      "class": "(entity_id: 'str', entity_name: 'str', entity_class: 'str', signed_at: 'str') -> None",
+      "members": {}
+    },
+    "SignatureResponse": {
+      "class": "(signature: 'str | dict[str, str]', signature_id: 'str', action_id: 'str', timestamp: 'float', verification_url: 'str', algorithm: 'str | None' = None, chain_hash: 'str | None' = None, rfc3161_tsa: 'str | None' = None, rfc3161_serial: 'str | None' = None, scan_result: 'dict[str, Any] | None' = None, policy_digest: 'str | None' = None, policy_decision: 'str' = 'permit', authorization_ref: 'str | None' = None, bitcoin_anchor: 'BitcoinAnchor | None' = None, required_co_signers: 'list[str] | None' = None, co_signatures: 'list[dict[str, Any]] | None' = None, countersign_url: 'str | None' = None, user_intent_verified: 'bool | None' = None, compliance_mode: 'bool' = False, receipt_type: 'str | None' = None, action_ref: 'str | None' = None, payload_digest: 'str | dict[str, Any] | None' = None, issuer_id: 'str | None' = None, iteration_id: 'str | None' = None, sandbox_state: 'str | None' = None, risk_class: 'str | None' = None, incident_class: 'str | list[str] | None' = None, reason: 'str | None' = None, previous_receipt_hash: 'str | None' = None, decision: 'str | None' = None, payload: 'dict[str, Any] | None' = None, anchors: 'list[dict[str, Any]] | None' = None) -> None",
+      "members": {
+        "action_ref": "NoneType None",
+        "algorithm": "NoneType None",
+        "anchors": "NoneType None",
+        "anchors_array": "(self) -> 'list[dict[str, Any]] | None'",
+        "authorization_ref": "NoneType None",
+        "bitcoin_anchor": "NoneType None",
+        "chain_hash": "NoneType None",
+        "co_signatures": "NoneType None",
+        "compliance_mode": "bool False",
+        "countersign_url": "NoneType None",
+        "decision": "NoneType None",
+        "incident_class": "NoneType None",
+        "issuer_id": "NoneType None",
+        "iteration_id": "NoneType None",
+        "payload": "NoneType None",
+        "payload_digest": "NoneType None",
+        "policy_decision": "str 'permit'",
+        "policy_digest": "NoneType None",
+        "previous_receipt_hash": "NoneType None",
+        "reason": "NoneType None",
+        "receipt": "(self) -> 'dict[str, Any] | None'",
+        "receipt_type": "NoneType None",
+        "required_co_signers": "NoneType None",
+        "rfc3161_serial": "NoneType None",
+        "rfc3161_tsa": "NoneType None",
+        "risk_class": "NoneType None",
+        "sandbox_state": "NoneType None",
+        "scan_result": "NoneType None",
+        "signature_envelope": "(self) -> 'dict[str, str] | None'",
+        "user_intent_verified": "NoneType None"
+      }
+    },
+    "SignedActionResponse": {
+      "class": "(signature_id: 'str', agent_id: 'str', action_id: 'str', action_type: 'str', payload: 'dict[str, Any] | None', algorithm: 'str', signed_at: 'float', signature_preview: 'str', verification_url: 'str') -> None",
+      "members": {}
+    },
+    "SigningEntityResponse": {
+      "class": "(id: 'str', config_id: 'str', entity_class: 'str', label: 'str', is_active: 'bool', created_at: 'str') -> None",
+      "members": {}
+    },
+    "SigningGroupResponse": {
+      "class": "(id: 'str', agent_id: 'str', min_approvals: 'int', total_shares: 'int', is_active: 'bool', created_at: 'str', updated_at: 'str | None' = None) -> None",
+      "members": {
+        "updated_at": "NoneType None"
+      }
+    },
+    "SigningSessionResponse": {
+      "class": "(session_id: 'str', config_id: 'str', agent_id: 'str', action_type: 'str', action_params: 'dict[str, Any] | None', approvals_required: 'int', signatures_collected: 'int', status: 'str', signatures: 'list[SignatureDetail]', policy_attestation_hash: 'str | None', created_at: 'str', expires_at: 'str', resolved_at: 'str | None' = None) -> None",
+      "members": {
+        "resolved_at": "NoneType None"
+      }
+    },
+    "Span": {
+      "class": "(span_id: 'str', name: 'str', start_time: 'float', attributes: 'dict[str, Any]' = <factory>, parent_id: 'str | None' = None, end_time: 'float | None' = None, status: 'str' = 'ok', signature: 'str | None' = None) -> None",
+      "members": {
+        "end_time": "NoneType None",
+        "parent_id": "NoneType None",
+        "set_attribute": "(self, key: 'str', value: 'Any') -> 'None'",
+        "set_status": "(self, status: 'str') -> 'None'",
+        "signature": "NoneType None",
+        "status": "str 'ok'"
+      }
+    },
+    "TokenResponse": {
+      "class": "(token: 'str', expires_at: 'float', algorithm: 'str') -> None",
+      "members": {}
+    },
+    "USER_AGENT": {
+      "value": "str 'asqav-python/<release> (+https://www.asqav.com)'"
+    },
+    "VerificationDetail": {
+      "class": "(signer_key_match: 'bool', signature_valid: 'bool', algorithm_match: 'bool', agent_active: 'bool', validation_label: 'str', signed_at_skew_seconds: 'float | None' = None, chain_valid: 'bool | None' = None, anchor_valid_ots: 'bool | None' = None, anchor_valid_rfc3161: 'bool | None' = None, anchor_status_ots: 'str | None' = None, anchor_status_rfc3161: 'str | None' = None, anchor_independent_rfc3161: 'str | None' = None, missing_fields: 'list[str] | None' = None, policy_digest_resolved: 'bool | None' = None, duplicate_emission_candidate: 'bool | None' = None, regimes_satisfied: 'list[str]' = <factory>) -> None",
+      "members": {
+        "anchor_independent_rfc3161": "NoneType None",
+        "anchor_status_ots": "NoneType None",
+        "anchor_status_rfc3161": "NoneType None",
+        "anchor_valid_ots": "NoneType None",
+        "anchor_valid_rfc3161": "NoneType None",
+        "chain_valid": "NoneType None",
+        "duplicate_emission_candidate": "NoneType None",
+        "missing_fields": "NoneType None",
+        "policy_digest_resolved": "NoneType None",
+        "signed_at_skew_seconds": "NoneType None"
+      }
+    },
+    "VerificationResponse": {
+      "class": "(signature_id: 'str', agent_id: 'str', agent_name: 'str', action_id: 'str', action_type: 'str', payload: 'dict[str, Any] | None', signature: 'str', algorithm: 'str', signed_at: 'float', verified: 'bool', verification_url: 'str', verification_detail: 'VerificationDetail | None' = None, execution_evidence: 'ExecutionEvidence | None' = None, type: 'str' = 'signature', bitcoin_anchor: 'BitcoinAnchorStatus | None' = None, signature_envelope: 'dict[str, str] | None' = None, anchors: 'list[dict[str, Any]] | None' = None, algorithm_registry_version: 'str | None' = None) -> None",
+      "members": {
+        "algorithm_registry_version": "NoneType None",
+        "anchors": "NoneType None",
+        "bitcoin_anchor": "NoneType None",
+        "execution_evidence": "NoneType None",
+        "signature_envelope": "NoneType None",
+        "type": "str 'signature'",
+        "verification_detail": "NoneType None"
+      }
+    },
+    "WITNESS_NAMESPACE": {
+      "value": "frozenset[\"'opentimestamps'\", \"'rfc3161'\"]"
+    },
+    "add_entity": {
+      "function": "(config_id: 'str', entity_class: 'str', label: 'str') -> 'SigningEntityResponse'"
+    },
+    "approve_action": {
+      "function": "(session_id: 'str', entity_id: 'str') -> 'ApprovalResponse'"
+    },
+    "compute_counterparty_binding": {
+      "function": "(originating_envelope: 'dict[str, Any]', *, receipt_ref: 'str | None' = None, expect_ack_from: 'str | None' = None, transport_label: 'str | None' = None, profile_version: 'str | None' = None, terms: 'dict[str, Any] | None' = None) -> 'CounterpartyBinding'"
+    },
+    "configure_otel": {
+      "function": "(endpoint: 'str | None' = None) -> 'None'"
+    },
+    "create_delegation": {
+      "function": "(config_id: 'str', delegator_entity_id: 'str', delegate_entity_id: 'str', expires_in: 'int' = 86400) -> 'DelegationResponse'"
+    },
+    "create_risk_rule": {
+      "function": "(name: 'str', action_pattern: 'str', risk_level: 'str', approval_override: 'int | None' = None, priority: 'int' = 0, entity_weights: 'dict[str, float] | None' = None, time_schedule: 'dict[str, Any] | None' = None) -> 'RiskRuleResponse'"
+    },
+    "create_signing_group": {
+      "function": "(agent_id: 'str', min_approvals: 'int', total_shares: 'int') -> 'SigningGroupResponse'"
+    },
+    "delete_risk_rule": {
+      "function": "(rule_id: 'str') -> 'dict[str, Any]'"
+    },
+    "emergency_halt": {
+      "function": "(org_id: 'str', reason: 'str' = 'emergency') -> 'dict'"
+    },
+    "export_audit_csv": {
+      "function": "(start_date: 'str | None' = None, end_date: 'str | None' = None, agent_id: 'str | None' = None) -> 'str'"
+    },
+    "export_audit_json": {
+      "function": "(start_date: 'str | None' = None, end_date: 'str | None' = None, agent_id: 'str | None' = None) -> 'dict[str, Any]'"
+    },
+    "export_spans": {
+      "function": "() -> 'list[dict[str, Any]]'"
+    },
+    "flush_spans": {
+      "function": "() -> 'None'"
+    },
+    "generate_attestation": {
+      "function": "(agent_id: 'str', session_id: 'str | None' = None, format: 'str' = 'json') -> 'dict[str, Any]'"
+    },
+    "generate_keypair": {
+      "function": "(config_id: 'str') -> 'GroupKeypairResponse'"
+    },
+    "generate_trace_id": {
+      "function": "() -> 'str'"
+    },
+    "get_action_status": {
+      "function": "(session_id: 'str') -> 'SigningSessionResponse'"
+    },
+    "get_agent": {
+      "function": "() -> 'Agent'"
+    },
+    "get_current_span": {
+      "function": "() -> 'Span | None'"
+    },
+    "get_delegation": {
+      "function": "(delegation_id: 'str') -> 'DelegationResponse'"
+    },
+    "get_keypair": {
+      "function": "(keypair_id: 'str') -> 'GroupKeypairResponse'"
+    },
+    "get_risk_rule": {
+      "function": "(rule_id: 'str') -> 'RiskRuleResponse'"
+    },
+    "get_session_signatures": {
+      "function": "(session_id: 'str') -> 'list[SignedActionResponse]'"
+    },
+    "get_signing_group": {
+      "function": "(agent_id: 'str') -> 'SigningGroupResponse'"
+    },
+    "govern": {
+      "function": "(api_key: 'str | None' = None, agent_name: 'str' = 'default-agent', agent_id: 'str | None' = None, *, algorithm: 'str' = 'ml-dsa-65', capabilities: 'list[str] | None' = None, base_url: 'str | None' = None, mode: 'str' = 'auto', org_salt: 'bytes | None' = None) -> \"'Agent'\""
+    },
+    "group_sign": {
+      "function": "(keypair_id: 'str', message_hex: 'str') -> 'GroupSignResponse'"
+    },
+    "health_check": {
+      "function": "() -> 'dict[str, Any]'"
+    },
+    "init": {
+      "function": "(api_key: 'str | None' = None, base_url: 'str | None' = None, *, mode: 'str' = 'auto', org_salt: 'bytes | None' = None, timeout: 'float | None' = None) -> 'None'"
+    },
+    "list_agents": {
+      "function": "() -> 'list[Agent]'"
+    },
+    "list_delegations": {
+      "function": "() -> 'list[DelegationResponse]'"
+    },
+    "list_entities": {
+      "function": "(config_id: 'str') -> 'list[SigningEntityResponse]'"
+    },
+    "list_rejected_attempts": {
+      "function": "(*, failure_reason: 'str | None' = None, agent_id: 'str | None' = None, hours: 'int' = 24, limit: 'int' = 100, offset: 'int' = 0) -> 'dict[str, Any]'"
+    },
+    "list_risk_rules": {
+      "function": "() -> 'list[RiskRuleResponse]'"
+    },
+    "list_sessions": {
+      "function": "(status: 'str | None' = None, agent_id: 'str | None' = None, limit: 'int' = 100) -> 'list[SigningSessionResponse]'"
+    },
+    "logger": {
+      "value": "Logger"
+    },
+    "post_applied_attestation": {
+      "function": "(signature_id: 'str', *, applied_at: 'str', outcome: 'str', executor_pubkey_b64: 'str', executor_algorithm: 'str', signature_b64: 'str', error_code: 'str | None' = None) -> 'dict[str, Any]'"
+    },
+    "recover_share": {
+      "function": "(keypair_id: 'str', entity_id: 'str', contributing_entity_ids: 'list[str]') -> 'ShareRecoveryResponse'"
+    },
+    "refresh_keypair": {
+      "function": "(keypair_id: 'str') -> 'KeyRefreshResponse'"
+    },
+    "remove_entity": {
+      "function": "(entity_id: 'str') -> 'dict[str, Any]'"
+    },
+    "request_action": {
+      "function": "(agent_id: 'str', action_type: 'str', params: 'dict[str, Any] | None' = None) -> 'SigningSessionResponse'"
+    },
+    "require_field": {
+      "function": "(data: 'dict[str, Any]', name: 'str') -> 'Any'"
+    },
+    "resolve_api_base": {
+      "function": "(explicit: 'str | None' = None, *, use_file: 'bool' = True) -> 'str'"
+    },
+    "resolve_api_key": {
+      "function": "(explicit: 'str | None' = None) -> 'str | None'"
+    },
+    "resolve_pattern": {
+      "function": "(pattern: 'str') -> 'str'"
+    },
+    "revoke_delegation": {
+      "function": "(delegation_id: 'str') -> 'dict[str, Any]'"
+    },
+    "secure": {
+      "function": "(func: 'F') -> 'F'"
+    },
+    "secure_async": {
+      "function": "(func: 'F') -> 'F'"
+    },
+    "span": {
+      "function": "(name: 'str', attributes: 'dict[str, Any] | None' = None) -> 'Generator[Span, None, None]'"
+    },
+    "span_to_otel": {
+      "function": "(s: 'Span') -> 'dict[str, Any]'"
+    },
+    "update_risk_rule": {
+      "function": "(rule_id: 'str', **kwargs: 'Any') -> 'RiskRuleResponse'"
+    },
+    "update_signing_group": {
+      "function": "(config_id: 'str', min_approvals: 'int | None' = None, is_active: 'bool | None' = None) -> 'SigningGroupResponse'"
+    },
+    "verify": {
+      "function": "(signature_id: 'str') -> 'dict[str, Any]'"
+    },
+    "verify_attestation": {
+      "function": "(attestation: 'dict[str, Any]') -> 'dict[str, Any]'"
+    },
+    "verify_compliance_receipt": {
+      "function": "(envelope: 'dict[str, Any]', *, predecessor_envelope: 'dict[str, Any] | None' = None, originating_envelope: 'dict[str, Any] | None' = None, now: 'float | None' = None) -> 'ComplianceReceiptVerification'"
+    },
+    "verify_output": {
+      "function": "(signature_id: 'str', expected_output: 'Any') -> 'dict[str, Any]'"
+    },
+    "verify_signature": {
+      "function": "(signature_id: 'str') -> 'VerificationResponse'"
+    },
+    "with_retry": {
+      "function": "(max_retries: 'int' = 3, base_delay: 'float' = 0.5, max_delay: 'float' = 30.0, jitter: 'bool' = True) -> 'Callable[[F], F]'"
+    }
+  }
+}

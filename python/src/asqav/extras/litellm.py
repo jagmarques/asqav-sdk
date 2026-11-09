@@ -281,7 +281,7 @@ class AsqavSigningLogger(CustomLogger):
         self._warned = False
 
         # Key resolution mirrors AsqavAdapter: explicit key, env, file, init()
-        resolved_key = resolve_api_key(api_key) or _client._api_key
+        resolved_key = resolve_api_key(api_key) or _client._transport._api_key
         self._adapter: AsqavAdapter | None = None
         if not resolved_key:
             self._warn_no_key()

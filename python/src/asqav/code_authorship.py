@@ -141,7 +141,7 @@ def submit_code_authorship(
 ) -> CodeAuthorshipResult:
     """POST an advisory code-authorship record to /v1/code-authorship.
     Needs a key with ``code_authorship:write``; returns the server envelope."""
-    from . import client as _client
+    from .client import _transport
 
     body: dict[str, Any] = {"repo": repo, "commit_sha": commit_sha}
     if base_sha:
@@ -155,7 +155,7 @@ def submit_code_authorship(
     if anchor:
         body["anchor"] = anchor
 
-    data = _client._post(CODE_AUTHORSHIP_PATH, body)
+    data = _transport._post(CODE_AUTHORSHIP_PATH, body)
     return CodeAuthorshipResult.from_response(data)
 
 

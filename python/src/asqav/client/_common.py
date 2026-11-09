@@ -11,7 +11,9 @@ from typing import Any, TypeVar
 
 F = TypeVar("F", bound=Callable[..., Any])
 
+
 logger = logging.getLogger("asqav")
+
 
 _OWASP_AGENTIC_TOP10_IDS = frozenset(f"ASI{number:02d}" for number in range(1, 11))
 

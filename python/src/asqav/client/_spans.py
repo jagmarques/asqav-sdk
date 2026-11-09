@@ -2,14 +2,20 @@
 
 from __future__ import annotations
 
+import json
 import time
+import urllib.request
 import uuid
 from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+from http.client import HTTPException
 from typing import Any
 
 from .._useragent import USER_AGENT
+from ._agents import get_agent
+from ._common import logger
+from ._errors import AsqavError, AsqavValidationError
 
 
 @dataclass
@@ -38,44 +44,17 @@ class Span:
         self.status = status
 
 
-    # Convert a Span to OTEL format.
-def span_to_otel(s: Span) -> dict[str, Any]:
-    return {
-        "traceId": s.span_id.replace("-", "")[:32].ljust(32, "0"),
-        "spanId": s.span_id.replace("-", "")[:16],
-        "parentSpanId": s.parent_id.replace("-", "")[:16] if s.parent_id else None,
-        "name": s.name,
-        "kind": 1,  # INTERNAL
-        "startTimeUnixNano": int(s.start_time * 1_000_000_000),
-        "endTimeUnixNano": int((s.end_time or s.start_time) * 1_000_000_000),
-        "attributes": [
-            {"key": k, "value": {"stringValue": str(v)}} for k, v in s.attributes.items()
-        ]
-        + (
-            [{"key": "asqav.signature", "value": {"stringValue": s.signature}}]
-            if s.signature
-            else []
-        ),
-        "status": {"code": 1 if s.status == "ok" else 2},
-    }
+# Global tracer state
+_current_span: Span | None = None
+
+
+_span_stack: list[Span] = []
 
 
 _completed_spans: list[Span] = []
 
 
-def export_spans() -> list[dict[str, Any]]:
-    """Export completed spans in OTEL format.
-
-    Returns:
-        List of spans in OTEL format.
-    """
-    spans = [span_to_otel(s) for s in _completed_spans]
-    _completed_spans.clear()
-    return spans
-
-
-_current_span: Span | None = None
-_span_stack: list[Span] = []
+_otel_endpoint: str | None = None
 
 
 @contextmanager
@@ -113,8 +92,6 @@ def span(
 
         # Sign the span via API
         try:
-            from . import get_agent
-
             agent = get_agent()
             result = agent.sign(
                 action_type=f"span:{name}",
@@ -130,18 +107,16 @@ def span(
                 result=dict(span_obj.attributes),
             )
             span_obj.signature = result.signature
-        except Exception:
-            pass  # Don't fail user code if signing fails
+        except (AsqavError, AsqavValidationError):
+            logger.warning("asqav span %r was not signed", name, exc_info=True)
 
+        # Add to completed spans for OTEL export
         _completed_spans.append(span_obj)
 
 
     # Get the active span, if any.
 def get_current_span() -> Span | None:
     return _current_span
-
-
-_otel_endpoint: str | None = None
 
 
 def configure_otel(endpoint: str | None = None) -> None:
@@ -156,6 +131,40 @@ def configure_otel(endpoint: str | None = None) -> None:
     """
     global _otel_endpoint
     _otel_endpoint = endpoint
+
+
+    # Convert a Span to OTEL format.
+def span_to_otel(s: Span) -> dict[str, Any]:
+    return {
+        "traceId": s.span_id.replace("-", "")[:32].ljust(32, "0"),
+        "spanId": s.span_id.replace("-", "")[:16],
+        "parentSpanId": s.parent_id.replace("-", "")[:16] if s.parent_id else None,
+        "name": s.name,
+        "kind": 1,  # INTERNAL
+        "startTimeUnixNano": int(s.start_time * 1_000_000_000),
+        "endTimeUnixNano": int((s.end_time or s.start_time) * 1_000_000_000),
+        "attributes": [
+            {"key": k, "value": {"stringValue": str(v)}} for k, v in s.attributes.items()
+        ]
+        + (
+            [{"key": "asqav.signature", "value": {"stringValue": s.signature}}]
+            if s.signature
+            else []
+        ),
+        "status": {"code": 1 if s.status == "ok" else 2},
+    }
+
+
+def export_spans() -> list[dict[str, Any]]:
+    """Export completed spans in OTEL format.
+
+    Returns:
+        List of spans in OTEL format.
+    """
+    global _completed_spans
+    spans = [span_to_otel(s) for s in _completed_spans]
+    _completed_spans = []
+    return spans
 
 
     # Flush spans to configured OTEL endpoint.
@@ -186,16 +195,13 @@ def flush_spans() -> None:
         ]
     }
 
+    req = urllib.request.Request(
+        _otel_endpoint,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json", "User-Agent": USER_AGENT},
+        method="POST",
+    )
     try:
-        import json
-        import urllib.request
-
-        req = urllib.request.Request(
-            _otel_endpoint,
-            data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json", "User-Agent": USER_AGENT},
-            method="POST",
-        )
         urllib.request.urlopen(req, timeout=5)
-    except Exception:
-        pass  # Don't fail on export errors
+    except (OSError, HTTPException):
+        logger.warning("asqav span export to %s failed", _otel_endpoint, exc_info=True)

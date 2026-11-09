@@ -45,11 +45,11 @@ class AsqavAdapter:
     ) -> None:
         self._observe = observe
 
-        if _client._api_key is None and api_key is None:
+        if _client._transport._api_key is None and api_key is None:
             raise AsqavError("Call asqav.init() first")
 
         # Explicit key re-inits the client so Agent calls authenticate with it.
-        if api_key is not None and api_key != _client._api_key:
+        if api_key is not None and api_key != _client._transport._api_key:
             _client.init(api_key)
 
         if agent_id is not None:

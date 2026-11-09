@@ -65,7 +65,7 @@ def _wire_with_payload_only() -> dict:
 
 
 def test_sync_sign_resolves_action_ref_and_prev_hash_from_payload() -> None:
-    with patch("asqav.client._post", return_value=_wire_with_payload_only()):
+    with patch("asqav.client._transport._post", return_value=_wire_with_payload_only()):
         resp = _agent().sign("api:call", {"k": "v"}, compliance_mode=True)
     assert resp.action_ref == _ACTION_REF
     assert resp.previous_receipt_hash == _PREV_HASH
@@ -76,14 +76,14 @@ def test_sync_top_level_wins_over_payload() -> None:
     wire = _wire_with_payload_only()
     wire["action_ref"] = "sha256:" + "b" * 64
     wire["previous_receipt_hash"] = "1" * 64
-    with patch("asqav.client._post", return_value=wire):
+    with patch("asqav.client._transport._post", return_value=wire):
         resp = _agent().sign("api:call", {"k": "v"}, compliance_mode=True)
     assert resp.action_ref == "sha256:" + "b" * 64
     assert resp.previous_receipt_hash == "1" * 64
 
 
 def test_sync_payload_object_returned_untouched() -> None:
-    with patch("asqav.client._post", return_value=_wire_with_payload_only()):
+    with patch("asqav.client._transport._post", return_value=_wire_with_payload_only()):
         resp = _agent().sign("api:call", {"k": "v"}, compliance_mode=True)
     assert resp.payload == {
         "v": 1,

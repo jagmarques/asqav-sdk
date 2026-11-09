@@ -166,7 +166,8 @@ def test_sign_reasoning_binds_output_digest():
     """sign_reasoning mints a wire result_digest over the output (787)."""
     from unittest.mock import patch
 
-    from asqav.client import Agent, _digest_result_value
+    from asqav.client import Agent
+    from asqav.client._sign_body import _digest_result_value
 
     captured: dict = {}
 
@@ -190,6 +191,6 @@ def test_sign_reasoning_binds_output_digest():
         created_at=1700000000.0,
     )
     output = {"label": "urgent", "confidence": 0.93}
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         sign_reasoning(agent, "classify this", [{"role": "assistant"}], output)
     assert captured["body"]["result_digest"] == _digest_result_value(output)

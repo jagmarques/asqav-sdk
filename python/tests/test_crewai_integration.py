@@ -21,7 +21,7 @@ from asqav.extras.crewai import AsqavCrewHook, enable_crew_governance
 @pytest.fixture()
 def hook():
     with (
-        patch("asqav.client._api_key", "sk_test"),
+        patch("asqav.client._transport._api_key", "sk_test"),
         patch("asqav.extras._base.Agent") as mock_agent_cls,
     ):
         mock_agent_cls.create.return_value = MagicMock()
@@ -220,7 +220,7 @@ def test_fail_open_on_sign_error(hook):
 def test_enable_wires_both_callbacks():
     crew = _DuckCrew()
     with (
-        patch("asqav.client._api_key", "sk_test"),
+        patch("asqav.client._transport._api_key", "sk_test"),
         patch("asqav.extras._base.Agent") as mock_agent_cls,
     ):
         mock_agent_cls.create.return_value = MagicMock()
@@ -238,7 +238,7 @@ def test_default_on_step_signs_by_default():
     """
     crew = _DuckCrew()
     with (
-        patch("asqav.client._api_key", "sk_test"),
+        patch("asqav.client._transport._api_key", "sk_test"),
         patch("asqav.extras._base.Agent") as mock_agent_cls,
     ):
         mock_agent_cls.create.return_value = MagicMock()
@@ -256,7 +256,7 @@ def test_default_on_step_signs_by_default():
 def test_default_on_task_signs_by_default():
     crew = _DuckCrew()
     with (
-        patch("asqav.client._api_key", "sk_test"),
+        patch("asqav.client._transport._api_key", "sk_test"),
         patch("asqav.extras._base.Agent") as mock_agent_cls,
     ):
         mock_agent_cls.create.return_value = MagicMock()
@@ -278,7 +278,7 @@ def test_existing_callbacks_preserved():
     crew.task_callback = lambda x: seen_tasks.append(x)
 
     with (
-        patch("asqav.client._api_key", "sk_test"),
+        patch("asqav.client._transport._api_key", "sk_test"),
         patch("asqav.extras._base.Agent") as mock_agent_cls,
     ):
         mock_agent_cls.create.return_value = MagicMock()
@@ -302,7 +302,7 @@ def test_enable_crew_governance_double_enable_idempotent():
     """
     crew = _DuckCrew()
     with (
-        patch("asqav.client._api_key", "sk_test"),
+        patch("asqav.client._transport._api_key", "sk_test"),
         patch("asqav.extras._base.Agent") as mock_agent_cls,
     ):
         mock_agent_cls.create.return_value = MagicMock()
@@ -330,7 +330,7 @@ def test_enable_crew_governance_double_enable_same_hook_no_orphan():
     """
     crew = _DuckCrew()
     with (
-        patch("asqav.client._api_key", "sk_test"),
+        patch("asqav.client._transport._api_key", "sk_test"),
         patch("asqav.extras._base.Agent") as mock_agent_cls,
     ):
         mock_agent_cls.create.return_value = MagicMock()

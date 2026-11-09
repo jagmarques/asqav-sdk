@@ -17,7 +17,7 @@ except ImportError as err:
         "Install with: pip install 'asqav[agt]'"
     ) from err
 
-from .client import _compute_action_ref
+from .client._sign_checks import _compute_action_ref
 from .extras._base import AsqavAdapter
 
 __all__ = [

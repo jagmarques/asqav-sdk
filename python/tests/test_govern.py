@@ -43,7 +43,7 @@ def _make_agent() -> Agent:
 def test_govern_calls_init_and_create() -> None:
     agent = _make_agent()
 
-    with patch("asqav.client.init") as mock_init, patch.object(
+    with patch("asqav.client._transport.init") as mock_init, patch.object(
         Agent, "create", return_value=agent
     ) as mock_create:
         result = govern(api_key="sk_test", agent_name="my-agent")
@@ -65,7 +65,7 @@ def test_govern_calls_init_and_create() -> None:
 def test_govern_retrieves_existing_agent_by_id() -> None:
     agent = _make_agent()
 
-    with patch("asqav.client.init"), patch.object(
+    with patch("asqav.client._transport.init"), patch.object(
         Agent, "get", return_value=agent
     ) as mock_get, patch.object(Agent, "create") as mock_create:
         result = govern(api_key="sk_test", agent_id="agt_govern_01")
@@ -79,7 +79,7 @@ def test_govern_retrieves_existing_agent_by_id() -> None:
 def test_govern_passes_capabilities_and_algorithm() -> None:
     agent = _make_agent()
 
-    with patch("asqav.client.init"), patch.object(
+    with patch("asqav.client._transport.init"), patch.object(
         Agent, "create", return_value=agent
     ) as mock_create:
         govern(
@@ -103,7 +103,7 @@ def test_govern_exported_from_package() -> None:
 def test_govern_default_agent_name() -> None:
     agent = _make_agent()
 
-    with patch("asqav.client.init"), patch.object(
+    with patch("asqav.client._transport.init"), patch.object(
         Agent, "create", return_value=agent
     ) as mock_create:
         govern(api_key="sk_test")

@@ -51,7 +51,7 @@ def _mock_httpx(payload: dict) -> MagicMock:
 
 def test_verify_returns_plain_dict_shape() -> None:
     payload = _cloud_payload()
-    with patch("asqav.client.httpx.get", return_value=_mock_httpx(payload)):
+    with patch("asqav.client._transport.httpx.get", return_value=_mock_httpx(payload)):
         result = asqav.verify("sig_test_dict")
     assert isinstance(result, dict)
     assert result["verified"] is True
@@ -63,7 +63,7 @@ def test_verify_returns_plain_dict_shape() -> None:
 def test_verify_chain_hash_matches_local_canonical() -> None:
     payload = _cloud_payload()
     expected = hashlib.sha256(canonical_json(payload["payload"])).hexdigest()
-    with patch("asqav.client.httpx.get", return_value=_mock_httpx(payload)):
+    with patch("asqav.client._transport.httpx.get", return_value=_mock_httpx(payload)):
         result = asqav.verify("sig_test_dict")
     assert result["chain_hash"] == expected
 
@@ -71,6 +71,6 @@ def test_verify_chain_hash_matches_local_canonical() -> None:
 def test_verify_chain_hash_none_when_no_payload() -> None:
     payload = _cloud_payload()
     payload["payload"] = None
-    with patch("asqav.client.httpx.get", return_value=_mock_httpx(payload)):
+    with patch("asqav.client._transport.httpx.get", return_value=_mock_httpx(payload)):
         result = asqav.verify("sig_test_dict")
     assert result["chain_hash"] is None

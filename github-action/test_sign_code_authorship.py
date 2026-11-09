@@ -1,6 +1,6 @@
 """Unit tests for the code-authorship recording action.
 
-No network, no real Asqav API. The server call (asqav.client._post) is mocked.
+No network, no real Asqav API: asqav.client._transport._post is mocked.
 These tests cover the load-bearing pieces of the action:
 
 1. advisory change_digest computation (wire form + diff hashing),
@@ -105,7 +105,7 @@ def test_sign_and_export_posts_advisory_and_binds_server_subject(monkeypatch, tm
             server_hex=SERVER_HEX, digest_match=False, advisory=advisory
         )
 
-    monkeypatch.setattr("asqav.client._post", fake_post)
+    monkeypatch.setattr("asqav.client._transport._post", fake_post)
 
     ctx = mod.GitContext(
         repo_ref="owner/repo",
@@ -161,7 +161,7 @@ def test_sign_and_export_reports_digest_match_true(monkeypatch, tmp_path):
             server_hex=ADVISORY_HEX, digest_match=True, advisory=advisory
         )
 
-    monkeypatch.setattr("asqav.client._post", fake_post)
+    monkeypatch.setattr("asqav.client._transport._post", fake_post)
 
     ctx = mod.GitContext(
         repo_ref="owner/repo",

@@ -149,7 +149,7 @@ def test_sign_projects_invocation_ref_to_wire() -> None:
         captured["body"] = body
         return _ok_response()
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign("tool:Write", context={"tool_input": {}}, invocation_ref="toolu_abc123")
     assert captured["body"]["invocation_ref"] == "toolu_abc123"
 
@@ -161,6 +161,6 @@ def test_sign_omits_invocation_ref_when_unset() -> None:
         captured["body"] = body
         return _ok_response()
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign("tool:Write", context={"tool_input": {}})
     assert "invocation_ref" not in captured["body"]

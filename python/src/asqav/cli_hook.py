@@ -129,7 +129,7 @@ def _build_body(
     clear_context: bool = False,
 ) -> dict[str, Any]:
     from asqav import client as _client
-    from asqav.client import _build_sign_body, _prepare_sign_context
+    from asqav.client._sign_body import _build_sign_body, _prepare_sign_context
 
     # sign() lowercases the action type and files trace_id in the context before
     # hashing, so the digest the receipt must answer is over that form.
@@ -139,8 +139,8 @@ def _build_body(
     )
     # The wire mode is a module global the SDK resolves at init; the hook pins
     # so a dry run shows the bytes the live hook sends.
-    previous = _client._mode
-    _client._mode = "full-payload" if clear_context else "hash-only"
+    previous = _client._transport._mode
+    _client._transport._mode = "full-payload" if clear_context else "hash-only"
     try:
         return _build_sign_body(
             action_type=wire_action,
@@ -150,7 +150,7 @@ def _build_body(
             compliance_fields=fields or None,
         )
     finally:
-        _client._mode = previous
+        _client._transport._mode = previous
 
 
 def _map_event(
@@ -234,11 +234,13 @@ def _sign_event(
     from asqav import client as _client
 
     sent: dict[str, str] = {}
-    token = _client._sign_body_tap.set(lambda body: sent.update(hash=str(body.get("hash", ""))))
+    token = _client._sign_body._sign_body_tap.set(
+        lambda body: sent.update(hash=str(body.get("hash", "")))
+    )
     try:
         sig = agent.sign(action_type, context=context, compliance_mode=True, **kwargs)
     finally:
-        _client._sign_body_tap.reset(token)
+        _client._sign_body._sign_body_tap.reset(token)
     return sig, sent.get("hash", "")
 
 
@@ -247,7 +249,7 @@ def _jwks_url() -> str:
 
     from asqav import client as _client
 
-    parts = urlsplit(_client._api_base)
+    parts = urlsplit(_client._transport._api_base)
     return f"{parts.scheme}://{parts.netloc}/.well-known/jwks.json"
 
 

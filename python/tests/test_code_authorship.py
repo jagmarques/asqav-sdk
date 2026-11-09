@@ -134,7 +134,7 @@ def test_submit_posts_advisory_digest_to_code_authorship_endpoint() -> None:
         captured["body"] = body
         return _server_response(server_digest_hex=server_hex)
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         result = submit_code_authorship(
             repo="owner/repo",
             commit_sha="c" * 40,
@@ -171,7 +171,7 @@ def test_submit_omits_absent_optional_fields() -> None:
         captured["body"] = body
         return _server_response(server_digest_hex="e" * 64)
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         submit_code_authorship(repo="owner/repo", commit_sha="c" * 40)
 
     body = captured["body"]

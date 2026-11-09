@@ -166,9 +166,9 @@ def test_agent_convenience_method():
     from asqav.client import Agent
 
     with (
-        patch("asqav.client._api_key", "sk_test"),
-        patch("asqav.client._post") as mock_post,
-        patch("asqav.client._get") as mock_get,
+        patch("asqav.client._transport._api_key", "sk_test"),
+        patch("asqav.client._transport._post") as mock_post,
+        patch("asqav.client._transport._get") as mock_get,
     ):
         mock_post.return_value = {
             "agent_id": "ag-1",
@@ -200,12 +200,13 @@ def test_agent_convenience_method():
 
 def test_agent_wrapper_binds_execution_digest():
     """agent.sign_with_phases(result=...) mints digest on :execution (787)."""
-    from asqav.client import Agent, _digest_result_value
+    from asqav.client import Agent
+    from asqav.client._sign_body import _digest_result_value
 
     with (
-        patch("asqav.client._api_key", "sk_test"),
-        patch("asqav.client._post") as mock_post,
-        patch("asqav.client._get") as mock_get,
+        patch("asqav.client._transport._api_key", "sk_test"),
+        patch("asqav.client._transport._post") as mock_post,
+        patch("asqav.client._transport._get") as mock_get,
     ):
         mock_post.return_value = {
             "agent_id": "ag-1",

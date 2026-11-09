@@ -2,11 +2,8 @@
 
 from __future__ import annotations
 
-from asqav.client import (
-    DECISION_MAP,
-    SignatureResponse,
-    _map_policy_decision_to_decision,
-)
+from asqav.client import DECISION_MAP, SignatureResponse
+from asqav.client._vocabulary import _map_policy_decision_to_decision
 
 
     # Every aliased `policy_decision` token resolves to a spec token.

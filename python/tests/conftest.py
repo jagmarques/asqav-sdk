@@ -12,3 +12,13 @@ import pytest
 @pytest.fixture(autouse=True)
 def _isolate_asqav_credentials(tmp_path, monkeypatch):
     monkeypatch.setenv("ASQAV_CREDENTIALS_PATH", str(tmp_path / "credentials"))
+
+
+@pytest.fixture
+def signing_transport():
+    from asqav.client import _transport
+
+    saved = (_transport._mode, _transport._org_salt, _transport._api_key)
+    _transport._api_key = "sk_test"
+    yield
+    _transport._mode, _transport._org_salt, _transport._api_key = saved

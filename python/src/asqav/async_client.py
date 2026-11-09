@@ -12,20 +12,16 @@ from .client import (
     AsqavError,
     AuthenticationError,
     PreflightResult,
-    RateLimitError,
     SessionResponse,
     SignatureResponse,
     VerificationResponse,
-    _connection_error,
-    _error_message,
-    _join_url,
-    _parse_bitcoin_anchor,
-    _parse_timestamp,
-    _resolve_action_ref,
-    _resolve_previous_receipt_hash,
-    _strict_response_json,
     require_field,
 )
+from .client._common import _parse_timestamp
+from .client._errors import _connection_error, _error_message
+from .client._models import _parse_bitcoin_anchor
+from .client._transport import _handle_response, _join_url, _strict_response_json
+from .client._vocabulary import _resolve_action_ref, _resolve_previous_receipt_hash
 from .patterns import resolve_pattern
 from .retry import with_async_retry
 
@@ -53,26 +49,11 @@ def _ensure_initialized() -> None:
 
     # Read ``(api_base, api_key)`` live from the client module (set by init()).
 def _get_config() -> tuple[str, str]:
-    from . import client as _client_mod
+    from .client import _transport
 
-    if not _client_mod._api_key:
+    if not _transport._api_key:
         raise AuthenticationError("Call asqav.init() first. Get your API key at asqav.com")
-    return _client_mod._api_base, _client_mod._api_key
-
-
-    # Handle API response errors (async version).
-async def _handle_response(response: Any) -> None:
-    if response.status_code == 401:
-        raise AuthenticationError("Invalid API key")
-    elif response.status_code == 429:
-        raise RateLimitError("Rate limit exceeded. Upgrade at asqav.com/pricing")
-    elif response.status_code >= 400:
-        try:
-            body = response.json()
-        except Exception:
-            body = None
-        text = response.text if isinstance(response.text, str) else ""
-        raise APIError(_error_message(response.status_code, text, body), response.status_code)
+    return _transport._api_base, _transport._api_key
 
 
     # Send one async request; transport failures become AsqavConnectionError.
@@ -97,7 +78,7 @@ async def _async_get(path: str) -> dict[str, Any]:
         timeout=30.0,
     ) as client:
         response = await _send(client, "get", api_base, path)
-        await _handle_response(response)
+        _handle_response(response)
         result: dict[str, Any] = _strict_response_json(response)
         return result
 
@@ -115,7 +96,7 @@ async def _async_post(path: str, data: dict[str, Any]) -> dict[str, Any]:
         timeout=30.0,
     ) as client:
         response = await _send(client, "post", api_base, path, json=data)
-        await _handle_response(response)
+        _handle_response(response)
         result: dict[str, Any] = _strict_response_json(response)
         return result
 
@@ -133,7 +114,7 @@ async def _async_patch(path: str, data: dict[str, Any]) -> dict[str, Any]:
         timeout=30.0,
     ) as client:
         response = await _send(client, "patch", api_base, path, json=data)
-        await _handle_response(response)
+        _handle_response(response)
         result: dict[str, Any] = _strict_response_json(response)
         return result
 
@@ -210,7 +191,7 @@ class AsyncAgent:
         action_ref: str | None = None,
         compliance_mode: bool | None = None,
     ) -> SignatureResponse:
-        from .client import _build_sign_body, _digest_result_value
+        from .client._sign_body import _build_sign_body, _digest_result_value
 
         if tool_name or model_name or parent_id:
             context = dict(context) if context else {}

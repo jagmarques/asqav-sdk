@@ -54,7 +54,7 @@ def test_executable_hash_forwarded_to_wire() -> None:
         captured["body"] = body
         return _ok_response()
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign(
             "build:provenance",
             {"k": "v"},
@@ -71,7 +71,7 @@ def test_sbom_digest_forwarded_to_wire() -> None:
         captured["body"] = body
         return _ok_response()
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign(
             "build:provenance",
             {"k": "v"},
@@ -88,7 +88,7 @@ def test_slsa_provenance_pointer_forwarded_to_wire() -> None:
         captured["body"] = body
         return _ok_response()
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign(
             "build:provenance",
             {"k": "v"},
@@ -105,7 +105,7 @@ def test_supply_chain_pointer_forwarded_to_wire() -> None:
         captured["body"] = body
         return _ok_response()
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign(
             "build:provenance",
             {"k": "v"},
@@ -162,7 +162,7 @@ def test_all_four_present_canonical_decision() -> None:
         captured["body"] = body
         return _ok_response()
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign(
             "build:provenance",
             {"k": "v"},

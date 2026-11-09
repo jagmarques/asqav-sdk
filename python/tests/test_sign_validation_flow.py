@@ -13,7 +13,7 @@ from tests.test_client_threat_framework_mappings import _agent, _ok_response
      "witness_policy_required_out_of_range"),
 ])
 def test_sign_checks_inputs_before_http(arguments, token):
-    with patch("asqav.client._post", return_value=_ok_response()) as post:
+    with patch("asqav.client._transport._post", return_value=_ok_response()) as post:
         with pytest.raises(ValueError, match=token):
             _agent().sign("api:call", {"value": 1}, **arguments)
         post.assert_not_called()
@@ -38,7 +38,7 @@ def test_sign_prepares_context_before_schema_and_detectors():
 
     with patch("asqav.hooks._dispatch_before", side_effect=before), \
          patch("asqav._detectors.run_detectors", side_effect=detectors), \
-         patch("asqav.client._post", return_value=_ok_response()) as post:
+         patch("asqav.client._transport._post", return_value=_ok_response()) as post:
         _agent().sign("api:call", {"z": 1}, trace_id="trace_fixture", context_schema=schema)
     assert steps == ["before", "schema", "detectors"]
     context = post.call_args.args[1]["context"]

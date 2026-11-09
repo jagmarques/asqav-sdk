@@ -323,5 +323,5 @@ def test_jwks_cache_is_reused_and_refreshed_once_on_a_key_miss(monkeypatch) -> N
 def test_jwks_url_derives_from_the_api_base(monkeypatch) -> None:
     from asqav import client as c
 
-    monkeypatch.setattr(c, "_api_base", "https://api.example.test/api/v1")
+    monkeypatch.setattr(c._transport, "_api_base", "https://api.example.test/api/v1")
     assert cli_hook._jwks_url() == "https://api.example.test/.well-known/jwks.json"

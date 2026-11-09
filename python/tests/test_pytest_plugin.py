@@ -108,7 +108,8 @@ def test_makereport_captures_call_phase() -> None:
 
 def test_makereport_binds_outcome_digest() -> None:
     """test:result sign mints a wire result_digest over the outcome (787)."""
-    from asqav.client import Agent, _digest_result_value
+    from asqav.client import Agent
+    from asqav.client._sign_body import _digest_result_value
 
     state = _get_state_for_tests()
     state.enabled = True
@@ -136,7 +137,7 @@ def test_makereport_binds_outcome_digest() -> None:
     report = MagicMock(when="call", nodeid="test.py::test_a",
                        outcome="passed", duration=0.1, longrepr=None,
                        sections=[])
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         gen = pytest_runtest_makereport(MagicMock(), MagicMock())
         next(gen)
         try:

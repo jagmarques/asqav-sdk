@@ -85,7 +85,8 @@ class LocalQueue:
     def sync(
         self, on_progress: Callable[[str, bool, str | None], Any] | None = None
     ) -> dict[str, Any]:
-        from .client import _build_sign_body, _post
+        from .client._sign_body import _build_sign_body
+        from .client._transport import _post
 
         items = self.list_pending()
         synced = 0
