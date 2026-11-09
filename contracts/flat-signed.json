@@ -1,0 +1,7 @@
+{
+  "required": [
+    "v", "mode", "hash", "hash_algo", "metadata", "server_timestamp", "action_id",
+    "agent_id", "org_id", "policy_digest", "policy_decision", "previous_receipt_hash"
+  ],
+  "optional": ["result_digest", "action_ref", "invocation_ref"]
+}
