@@ -30,7 +30,7 @@ def test_both_paths_fill_the_decoder_only_fields() -> None:
         "payload_digest": "d1",
         "compliance_mode": True,
         "record_hash": "h1",
-        "policy_decision": "deny",
+        "policy_decision": "permit",
     }
     with patch.object(_transport, "_post", side_effect=[row, {"signatures": [row]}]):
         single = _agent().countersign("sig_1")
@@ -40,7 +40,7 @@ def test_both_paths_fill_the_decoder_only_fields() -> None:
         assert res.payload_digest == "d1"
         assert res.compliance_mode is True
         assert res.chain_hash == "h1"
-        assert res.decision == "deny"
+        assert res.decision == "allow"
 
 
 def test_negctl_a_planted_decoder_is_the_one_both_paths_return() -> None:
