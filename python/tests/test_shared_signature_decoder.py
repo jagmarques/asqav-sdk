@@ -34,13 +34,15 @@ def test_both_paths_apply_the_decoder_fallbacks() -> None:
         assert res.decision == "deny"
 
 
+def _bare_decoder(data: dict) -> SignatureResponse:
+    return SignatureResponse(**{k: data[k] for k in _BASE}, chain_hash=data.get("chain_hash"))
+
+
 def test_negctl_without_the_decoder_the_fallback_is_lost() -> None:
+    """NEGCTL: a decoder without the record_hash fallback leaves chain_hash None."""
     row = {**_BASE, "record_hash": "h1"}
-    raw = lambda data: SignatureResponse(  # noqa: E731
-        **{k: data[k] for k in _BASE}, chain_hash=data.get("chain_hash")
-    )
     with (
         patch.object(_transport, "_post", return_value=row),
-        patch.object(_agent_signing, "_signature_response", raw),
+        patch.object(_agent_signing, "_signature_response", _bare_decoder),
     ):
         assert _agent().countersign("sig_1").chain_hash is None
