@@ -6,7 +6,6 @@ from unittest.mock import patch
 
 import asqav
 from asqav.client import _agent_signing, _transport
-from asqav.client._models import SignatureResponse
 
 _BASE = {
     "signature": "s",
@@ -24,25 +23,28 @@ def _agent() -> asqav.Agent:
     )
 
 
-def test_both_paths_apply_the_decoder_fallbacks() -> None:
-    row = {**_BASE, "record_hash": "h1", "policy_decision": "deny", "compliance_mode": True}
+def test_both_paths_fill_the_decoder_only_fields() -> None:
+    row = {
+        **_BASE,
+        "receipt_type": "action",
+        "payload_digest": "d1",
+        "compliance_mode": True,
+    }
     with patch.object(_transport, "_post", side_effect=[row, {"signatures": [row]}]):
         single = _agent().countersign("sig_1")
         batch = _agent().sign_batch([{"action_type": "x:y"}])[0]
     for res in (single, batch):
-        assert res.chain_hash == "h1"
-        assert res.decision == "deny"
+        assert res.receipt_type == "action"
+        assert res.payload_digest == "d1"
+        assert res.compliance_mode is True
 
 
-def _bare_decoder(data: dict) -> SignatureResponse:
-    return SignatureResponse(**{k: data[k] for k in _BASE}, chain_hash=data.get("chain_hash"))
-
-
-def test_negctl_without_the_decoder_the_fallback_is_lost() -> None:
-    """NEGCTL: no record_hash fallback leaves chain_hash None."""
-    row = {**_BASE, "record_hash": "h1"}
+def test_negctl_a_planted_decoder_is_the_one_both_paths_return() -> None:
+    """NEGCTL: a sentinel decoder planted in the module is what both return."""
+    row = {**_BASE}
     with (
-        patch.object(_transport, "_post", return_value=row),
-        patch.object(_agent_signing, "_signature_response", _bare_decoder),
+        patch.object(_transport, "_post", side_effect=[row, {"signatures": [row]}]),
+        patch.object(_agent_signing, "_signature_response", lambda data: "planted"),
     ):
-        assert _agent().countersign("sig_1").chain_hash is None
+        assert _agent().countersign("sig_1") == "planted"
+        assert _agent().sign_batch([{"action_type": "x:y"}]) == ["planted"]
