@@ -1,4 +1,4 @@
-"""countersign() and sign_batch() decode through the one sign-response decoder."""
+"""countersign and sign_batch decode through the one sign decoder."""
 
 from __future__ import annotations
 
@@ -39,7 +39,7 @@ def _bare_decoder(data: dict) -> SignatureResponse:
 
 
 def test_negctl_without_the_decoder_the_fallback_is_lost() -> None:
-    """NEGCTL: a decoder without the record_hash fallback leaves chain_hash None."""
+    """NEGCTL: no record_hash fallback leaves chain_hash None."""
     row = {**_BASE, "record_hash": "h1"}
     with (
         patch.object(_transport, "_post", return_value=row),

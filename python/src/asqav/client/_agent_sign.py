@@ -246,7 +246,7 @@ def _check_sign_params(p: dict[str, Any]) -> None:
         and p["tool_schema"] is not None
     ):
         p["tool_fingerprint"] = _compute_tool_fingerprint(p["tool_name"], p["tool_schema"])
-    # Fill the nonce wire field when omitted; the cloud answers 409 on a live re-use.
+    # Fill the nonce when omitted; the cloud answers 409 on a live re-use.
     if p["nonce"] is None:
         p["nonce"] = _generate_nonce()
 
