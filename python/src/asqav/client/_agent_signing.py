@@ -7,11 +7,10 @@ from typing import Any
 from ..patterns import resolve_pattern
 from ..phases import sign_with_phases as _sign_with_phases
 from . import _transport
+from ._agent_sign import _signature_response
 from ._common import _hash_value
-from ._errors import require_field
-from ._models import SignatureResponse, _parse_bitcoin_anchor
+from ._models import SignatureResponse
 from ._sign_body import _build_sign_body
-from ._vocabulary import _map_policy_decision_to_decision
 
 
 class _AgentSigning:
@@ -37,33 +36,7 @@ class _AgentSigning:
             f"/agents/{self.agent_id}/countersign/{signature_id}",
             {},
         )
-        return SignatureResponse(
-            signature=require_field(data, "signature"),
-            signature_id=require_field(data, "signature_id"),
-            action_id=require_field(data, "action_id"),
-            timestamp=require_field(data, "timestamp"),
-            verification_url=require_field(data, "verification_url"),
-            algorithm=data.get("algorithm"),
-            chain_hash=data.get("chain_hash") or data.get("record_hash"),
-            rfc3161_tsa=(data.get("rfc3161_timestamp") or {}).get("tsa"),
-            rfc3161_serial=(data.get("rfc3161_timestamp") or {}).get("serial_number"),
-            policy_digest=data.get("policy_digest"),
-            policy_decision=data.get("policy_decision", "permit"),
-            authorization_ref=data.get("authorization_ref"),
-            bitcoin_anchor=_parse_bitcoin_anchor(data.get("bitcoin_anchor")),
-            required_co_signers=data.get("required_co_signers"),
-            co_signatures=data.get("co_signatures"),
-            countersign_url=data.get("countersign_url"),
-            user_intent_verified=data.get("user_intent_verified"),
-            decision=(
-                data.get("decision")
-                or (
-                    _map_policy_decision_to_decision(data.get("policy_decision"))
-                    if data.get("compliance_mode")
-                    else None
-                )
-            ),
-        )
+        return _signature_response(data)
 
     def sign_batch(
         self,
@@ -115,32 +88,7 @@ class _AgentSigning:
             if sig is None:
                 results.append(None)
             else:
-                results.append(
-                    SignatureResponse(
-                        signature=require_field(sig, "signature"),
-                        signature_id=require_field(sig, "signature_id"),
-                        action_id=require_field(sig, "action_id"),
-                        timestamp=require_field(sig, "timestamp"),
-                        verification_url=require_field(sig, "verification_url"),
-                        algorithm=sig.get("algorithm"),
-                        chain_hash=sig.get("chain_hash") or sig.get("record_hash"),
-                        rfc3161_tsa=(sig.get("rfc3161_timestamp") or {}).get("tsa"),
-                        rfc3161_serial=(sig.get("rfc3161_timestamp") or {}).get("serial_number"),
-                        scan_result=sig.get("scan_result"),
-                        policy_digest=sig.get("policy_digest"),
-                        policy_decision=sig.get("policy_decision", "permit"),
-                        authorization_ref=sig.get("authorization_ref"),
-                        bitcoin_anchor=_parse_bitcoin_anchor(sig.get("bitcoin_anchor")),
-                        decision=(
-                            sig.get("decision")
-                            or (
-                                _map_policy_decision_to_decision(sig.get("policy_decision"))
-                                if sig.get("compliance_mode")
-                                else None
-                            )
-                        ),
-                    )
-                )
+                results.append(_signature_response(sig))
         return results
 
     def sign_output(
