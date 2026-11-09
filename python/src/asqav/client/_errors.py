@@ -5,6 +5,8 @@ from __future__ import annotations
 import json as _json
 from typing import Any
 
+from .._sdk_constants import SDK_CONSTANTS
+
 
     # Base exception for asqav errors.
 class AsqavError(Exception):
@@ -122,7 +124,7 @@ class AsqavResponseError(AsqavError):
 
 
 #: Docs page anchoring missing-required-field response errors (rule 3.9).
-RESPONSE_ERROR_DOCS_URL: str = "https://asqav.com/docs/sdk-errors"
+RESPONSE_ERROR_DOCS_URL: str = SDK_CONSTANTS["RESPONSE_ERROR_DOCS_URL"]
 
 
 def require_field(data: dict[str, Any], name: str) -> Any:

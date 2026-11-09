@@ -16,9 +16,8 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from asqav.client import (
-    RECEIPT_TYPE_NAMESPACE,
-    Agent,
+from asqav.client import RECEIPT_TYPE_NAMESPACE, Agent
+from asqav.client._sign_checks import (
     _compute_config_manifest_digest,
     _compute_cve_inventory_digest,
     _compute_tool_fingerprint,
@@ -64,7 +63,7 @@ def test_nonce_auto_generated_when_omitted() -> None:
         captured["body"] = body
         return _ok_response()
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign("api:call", {"k": "v"}, compliance_mode=True)
 
     nonce = captured["body"]["nonce"]
@@ -80,7 +79,7 @@ def test_nonce_caller_supplied_value_wins() -> None:
         captured["body"] = body
         return _ok_response()
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign(
             "api:call",
             {"k": "v"},
@@ -115,7 +114,7 @@ def test_tool_fingerprint_auto_computed_when_schema_present() -> None:
         captured["body"] = body
         return _ok_response()
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign(
             "api:call",
             {"k": "v"},
@@ -137,7 +136,7 @@ def test_tool_fingerprint_caller_value_wins() -> None:
         return _ok_response()
 
     explicit = "a" * 32
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign(
             "api:call",
             {"k": "v"},
@@ -157,7 +156,7 @@ def test_tool_fingerprint_absent_when_no_schema_provided() -> None:
         captured["body"] = body
         return _ok_response()
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign(
             "api:call",
             {"k": "v"},
@@ -187,7 +186,7 @@ def test_caller_digest_fields_forwarded_verbatim(field: str, value: str) -> None
         captured["body"] = body
         return _ok_response()
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign(
             "api:call",
             {"k": "v"},
@@ -215,7 +214,7 @@ def test_nsa_aligned_fields_absent_when_not_set(field: str) -> None:
         captured["body"] = body
         return _ok_response()
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign("api:call", {"k": "v"}, compliance_mode=True)
     assert field not in captured["body"]
 
@@ -227,7 +226,7 @@ def test_configuration_change_requires_config_manifest_digest() -> None:
     """The cross-field validator rejects ``configuration_change`` without
     ``config_manifest_digest``. Verbatim message kept byte-for-byte in
     lockstep with the cloud cross-field validator."""
-    with patch("asqav.client._post") as p:
+    with patch("asqav.client._transport._post") as p:
         with pytest.raises(ValueError) as exc_info:
             _agent().sign(
                 "api:call",
@@ -255,7 +254,7 @@ def test_configuration_change_accepts_when_digest_present() -> None:
         return _ok_response()
 
     digest = "sha256:" + "e" * 64
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign(
             "api:call",
             {"k": "v"},
@@ -279,7 +278,7 @@ def test_lifecycle_without_configuration_change_does_not_require_digest() -> Non
         captured["body"] = body
         return _ok_response()
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign(
             "api:call",
             {"k": "v"},
@@ -300,7 +299,7 @@ class TestExpiryCollisionGuard:
     def test_both_set_raises_verbatim(self) -> None:
         """Passing both knobs raises ``expiry_collision_guard`` before the
         HTTP roundtrip with a verbatim message in lockstep with the cloud."""
-        with patch("asqav.client._post") as p:
+        with patch("asqav.client._transport._post") as p:
             with pytest.raises(ValueError) as exc_info:
                 _agent().sign(
                     "api:call",
@@ -323,7 +322,7 @@ class TestExpiryCollisionGuard:
             captured["body"] = body
             return _ok_response()
 
-        with patch("asqav.client._post", side_effect=fake_post):
+        with patch("asqav.client._transport._post", side_effect=fake_post):
             _agent().sign("api:call", {"k": "v"}, compliance_mode=True)
         assert "valid_seconds" not in captured["body"]
         assert "expires_at" not in captured["body"]
@@ -336,7 +335,7 @@ class TestExpiryCollisionGuard:
             captured["body"] = body
             return _ok_response()
 
-        with patch("asqav.client._post", side_effect=fake_post):
+        with patch("asqav.client._transport._post", side_effect=fake_post):
             _agent().sign(
                 "api:call",
                 {"k": "v"},
@@ -358,7 +357,7 @@ class TestExpiryCollisionGuard:
             return _ok_response()
 
         # Far-future ISO horizon -> a large positive duration.
-        with patch("asqav.client._post", side_effect=fake_post):
+        with patch("asqav.client._transport._post", side_effect=fake_post):
             _agent().sign(
                 "api:call",
                 {"k": "v"},
@@ -378,7 +377,7 @@ class TestExpiryCollisionGuard:
             captured["body"] = body
             return _ok_response()
 
-        with patch("asqav.client._post", side_effect=fake_post):
+        with patch("asqav.client._transport._post", side_effect=fake_post):
             _agent().sign(
                 "api:call",
                 {"k": "v"},
@@ -414,7 +413,7 @@ class TestDigestFormatGuard:
             captured["body"] = body
             return _ok_response()
 
-        with patch("asqav.client._post", side_effect=fake_post):
+        with patch("asqav.client._transport._post", side_effect=fake_post):
             _agent().sign(
                 "api:call",
                 {"k": "v"},
@@ -434,7 +433,7 @@ class TestDigestFormatGuard:
             return _ok_response()
 
         fp = "a" * 32
-        with patch("asqav.client._post", side_effect=fake_post):
+        with patch("asqav.client._transport._post", side_effect=fake_post):
             _agent().sign(
                 "api:call",
                 {"k": "v"},
@@ -449,7 +448,7 @@ class TestDigestFormatGuard:
         ["config_manifest_digest", "cve_inventory_digest"],
     )
     def test_wrong_prefix_rejected(self, field: str) -> None:
-        with patch("asqav.client._post") as p:
+        with patch("asqav.client._transport._post") as p:
             with pytest.raises(ValueError) as exc_info:
                 _agent().sign(
                     "api:call",
@@ -469,7 +468,7 @@ class TestDigestFormatGuard:
         ["config_manifest_digest", "cve_inventory_digest"],
     )
     def test_wrong_length_rejected(self, field: str) -> None:
-        with patch("asqav.client._post") as p:
+        with patch("asqav.client._transport._post") as p:
             with pytest.raises(ValueError) as exc_info:
                 _agent().sign(
                     "api:call",
@@ -489,7 +488,7 @@ class TestDigestFormatGuard:
         ["config_manifest_digest", "cve_inventory_digest"],
     )
     def test_non_hex_rejected(self, field: str) -> None:
-        with patch("asqav.client._post") as p:
+        with patch("asqav.client._transport._post") as p:
             with pytest.raises(ValueError) as exc_info:
                 _agent().sign(
                     "api:call",
@@ -516,7 +515,7 @@ class TestDigestFormatGuard:
         """tool_fingerprint must be 32 bare lowercase hex chars
         (SHA-256[:32]) to match the cloud wire form. The verbatim token
         mirrors the cloud message ``tool_fingerprint_not_32_hex_chars``."""
-        with patch("asqav.client._post") as p:
+        with patch("asqav.client._transport._post") as p:
             with pytest.raises(ValueError) as exc_info:
                 _agent().sign(
                     "api:call",
@@ -603,7 +602,7 @@ class TestResultBoundReceiptType:
         ):
             kwargs["policy_decision"] = "none"
 
-        with patch("asqav.client._post", side_effect=fake_post):
+        with patch("asqav.client._transport._post", side_effect=fake_post):
             _agent().sign("api:call", {"k": "v"}, **kwargs)
         assert captured["body"]["receipt_type"] == receipt_type
 
@@ -617,7 +616,7 @@ class TestResultBoundReceiptType:
             return _ok_response()
 
         result_digest = "sha256:" + "9" * 64
-        with patch("asqav.client._post", side_effect=fake_post):
+        with patch("asqav.client._transport._post", side_effect=fake_post):
             _agent().sign(
                 "api:call",
                 {"k": "v"},

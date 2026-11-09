@@ -50,7 +50,7 @@ def test_witness_policy_forwarded_to_wire() -> None:
         return _ok_response()
 
     policy = {"required": 1, "witnesses": ["rfc3161", "opentimestamps"]}
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign(
             "deploy:release",
             {"k": "v"},
@@ -68,7 +68,7 @@ def test_witness_policy_single_witness_forwarded() -> None:
         return _ok_response()
 
     policy = {"required": 1, "witnesses": ["opentimestamps"]}
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign(
             "deploy:release",
             {"k": "v"},
@@ -167,6 +167,6 @@ def test_witness_policy_absent_means_no_field() -> None:
         captured["body"] = body
         return _ok_response()
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign("deploy:release", {"k": "v"}, compliance_mode=True)
     assert "witness_policy" not in captured["body"]

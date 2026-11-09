@@ -47,7 +47,7 @@ def _clean_hooks():
 
 
     # A before-hook can add fields that land in the body sent to the API.
-@patch("asqav.client._post")
+@patch("asqav.client._transport._post")
 def test_register_before_mutates_context_reaching_sign(mock_post: object) -> None:
     mock_post.return_value = _ok_response()  # type: ignore[attr-defined]
 
@@ -66,7 +66,7 @@ def test_register_before_mutates_context_reaching_sign(mock_post: object) -> Non
 
 
     # After-hooks receive the SignatureResponse object.
-@patch("asqav.client._post")
+@patch("asqav.client._transport._post")
 def test_register_after_fires_with_signature_response(mock_post: object) -> None:
     mock_post.return_value = _ok_response()  # type: ignore[attr-defined]
 
@@ -82,7 +82,7 @@ def test_register_after_fires_with_signature_response(mock_post: object) -> None
 
 
     # A raising hook is logged and signing still returns a response.
-@patch("asqav.client._post")
+@patch("asqav.client._transport._post")
 def test_failing_hook_does_not_crash_sign(mock_post: object) -> None:
     mock_post.return_value = _ok_response()  # type: ignore[attr-defined]
 
@@ -102,7 +102,7 @@ def test_failing_hook_does_not_crash_sign(mock_post: object) -> None:
 
 
     # ``strands:*`` matches strands:model_call but not langchain:tool_call.
-@patch("asqav.client._post")
+@patch("asqav.client._transport._post")
 def test_pattern_matching_strands_glob(mock_post: object) -> None:
     mock_post.return_value = _ok_response()  # type: ignore[attr-defined]
 

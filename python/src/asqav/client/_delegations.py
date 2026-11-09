@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from .. import client as _client
+from . import _transport
 from ._models import DelegationResponse
 
 # --- Delegations ---
@@ -38,7 +38,7 @@ def create_delegation(
             expires_in=3600,  # 1 hour
         )
     """
-    data = _client._post(
+    data = _transport._post(
         "/signing-groups/delegations",
         {
             "config_id": config_id,
@@ -56,7 +56,7 @@ def list_delegations() -> list[DelegationResponse]:
     Returns:
         List of DelegationResponse.
     """
-    data = _client._get("/signing-groups/delegations")
+    data = _transport._get("/signing-groups/delegations")
     return [_parse_delegation(d) for d in data]
 
 
@@ -69,7 +69,7 @@ def get_delegation(delegation_id: str) -> DelegationResponse:
     Returns:
         DelegationResponse.
     """
-    data = _client._get(f"/signing-groups/delegations/{delegation_id}")
+    data = _transport._get(f"/signing-groups/delegations/{delegation_id}")
     return _parse_delegation(data)
 
 
@@ -82,9 +82,10 @@ def revoke_delegation(delegation_id: str) -> dict[str, Any]:
     Returns:
         Confirmation dict.
     """
-    return _client._delete(f"/signing-groups/delegations/{delegation_id}")
+    return _transport._delete(f"/signing-groups/delegations/{delegation_id}")
 
 
+    # Parse API response into a DelegationResponse.
 def _parse_delegation(data: dict[str, Any]) -> DelegationResponse:
     return DelegationResponse(
         id=data["id"],

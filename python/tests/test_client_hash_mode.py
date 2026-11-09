@@ -2,7 +2,7 @@
 
 We patch the module-level ``_post`` helper in ``asqav.client`` and assert
 on the body it would have sent, without the optional httpx dependency,
-matching the ``patch("asqav.client._post")`` pattern elsewhere.
+matching the ``patch("asqav.client._transport._post")`` pattern elsewhere.
 """
 
 from __future__ import annotations
@@ -18,6 +18,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 import asqav  # noqa: E402
 from asqav import client as client_mod  # noqa: E402
 from asqav.client import Agent  # noqa: E402
+
+pytestmark = pytest.mark.usefixtures("signing_transport")
 
 # A canned response that satisfies SignatureResponse decoding.
 MOCK_SIGN_RESPONSE: dict = {
@@ -49,21 +51,12 @@ def _make_agent() -> Agent:
     )
 
 
-    # Reset SDK module state between tests.
-@pytest.fixture(autouse=True)
-def _isolate_module_state() -> None:
-    saved = (client_mod._mode, client_mod._org_salt, client_mod._api_key)
-    client_mod._api_key = "sk_test"
-    yield
-    client_mod._mode, client_mod._org_salt, client_mod._api_key = saved
-
-
 def test_full_payload_mode_sends_context() -> None:
-    client_mod._mode = "full-payload"
-    client_mod._org_salt = None
+    client_mod._transport._mode = "full-payload"
+    client_mod._transport._org_salt = None
     agent = _make_agent()
 
-    with patch("asqav.client._post", return_value=MOCK_SIGN_RESPONSE) as mock_post:
+    with patch("asqav.client._transport._post", return_value=MOCK_SIGN_RESPONSE) as mock_post:
         agent.sign("api:call", {"prompt": "hi", "user_id": "u_001"})
 
     path, body = mock_post.call_args[0]
@@ -75,11 +68,11 @@ def test_full_payload_mode_sends_context() -> None:
 
 
 def test_hash_only_mode_sends_hash_not_context() -> None:
-    client_mod._mode = "hash-only"
-    client_mod._org_salt = None
+    client_mod._transport._mode = "hash-only"
+    client_mod._transport._org_salt = None
     agent = _make_agent()
 
-    with patch("asqav.client._post", return_value=MOCK_SIGN_RESPONSE) as mock_post:
+    with patch("asqav.client._transport._post", return_value=MOCK_SIGN_RESPONSE) as mock_post:
         agent.sign("api:call", {"prompt": "hi", "user_id": "u_001"})
 
     _path, body = mock_post.call_args[0]
@@ -99,14 +92,14 @@ def test_hash_only_mode_sends_hash_not_context() -> None:
 def test_hash_only_payload_size_matches_canonical_bytes_length() -> None:
     from asqav.canonicalize import canonicalize
 
-    client_mod._mode = "hash-only"
-    client_mod._org_salt = None
+    client_mod._transport._mode = "hash-only"
+    client_mod._transport._org_salt = None
     agent = _make_agent()
 
     context = {"prompt": "hi", "user_id": "u_001"}
     expected_bytes = canonicalize({"action_type": "api:call", "context": context})
 
-    with patch("asqav.client._post", return_value=MOCK_SIGN_RESPONSE) as mock_post:
+    with patch("asqav.client._transport._post", return_value=MOCK_SIGN_RESPONSE) as mock_post:
         agent.sign("api:call", context)
 
     _, body = mock_post.call_args[0]
@@ -115,8 +108,8 @@ def test_hash_only_payload_size_matches_canonical_bytes_length() -> None:
 
     # user_id, ip, prompt, etc. in context must NOT appear in metadata.
 def test_hash_only_metadata_does_not_leak_user_fields() -> None:
-    client_mod._mode = "hash-only"
-    client_mod._org_salt = None
+    client_mod._transport._mode = "hash-only"
+    client_mod._transport._org_salt = None
     agent = _make_agent()
 
     sensitive_context = {
@@ -125,7 +118,7 @@ def test_hash_only_metadata_does_not_leak_user_fields() -> None:
         "ip": "1.2.3.4",
         "request_id": "req_xyz",
     }
-    with patch("asqav.client._post", return_value=MOCK_SIGN_RESPONSE) as mock_post:
+    with patch("asqav.client._transport._post", return_value=MOCK_SIGN_RESPONSE) as mock_post:
         agent.sign("api:call", sensitive_context)
 
     _, body = mock_post.call_args[0]
@@ -138,11 +131,11 @@ def test_hash_only_metadata_does_not_leak_user_fields() -> None:
 
     # If caller adds ``_model_name`` sentinel to context, surface in metadata.
 def test_hash_only_includes_optional_model_name_when_opted_in() -> None:
-    client_mod._mode = "hash-only"
-    client_mod._org_salt = None
+    client_mod._transport._mode = "hash-only"
+    client_mod._transport._org_salt = None
     agent = _make_agent()
 
-    with patch("asqav.client._post", return_value=MOCK_SIGN_RESPONSE) as mock_post:
+    with patch("asqav.client._transport._post", return_value=MOCK_SIGN_RESPONSE) as mock_post:
         agent.sign(
             "api:call",
             {"prompt": "hi", "_model_name": "gpt-4", "_tool_name": "search"},
@@ -155,11 +148,11 @@ def test_hash_only_includes_optional_model_name_when_opted_in() -> None:
 
     # ``_parent_id`` in context auto-surfaces to metadata bag.
 def test_hash_only_surfaces_parent_id_from_context_sentinel() -> None:
-    client_mod._mode = "hash-only"
-    client_mod._org_salt = None
+    client_mod._transport._mode = "hash-only"
+    client_mod._transport._org_salt = None
     agent = _make_agent()
 
-    with patch("asqav.client._post", return_value=MOCK_SIGN_RESPONSE) as mock_post:
+    with patch("asqav.client._transport._post", return_value=MOCK_SIGN_RESPONSE) as mock_post:
         agent.sign("api:call", {"prompt": "hi", "_parent_id": "act_parent_42"})
 
     _, body = mock_post.call_args[0]
@@ -168,11 +161,11 @@ def test_hash_only_surfaces_parent_id_from_context_sentinel() -> None:
 
     # Passing tool_name=... to sign() surfaces it in the wire metadata bag.
 def test_hash_only_explicit_tool_name_kwarg_appears_in_metadata() -> None:
-    client_mod._mode = "hash-only"
-    client_mod._org_salt = None
+    client_mod._transport._mode = "hash-only"
+    client_mod._transport._org_salt = None
     agent = _make_agent()
 
-    with patch("asqav.client._post", return_value=MOCK_SIGN_RESPONSE) as mock_post:
+    with patch("asqav.client._transport._post", return_value=MOCK_SIGN_RESPONSE) as mock_post:
         agent.sign("api:call", {"prompt": "hi"}, tool_name="web_search")
 
     _, body = mock_post.call_args[0]
@@ -181,11 +174,11 @@ def test_hash_only_explicit_tool_name_kwarg_appears_in_metadata() -> None:
 
     # Passing model_name=... to sign() surfaces it in the wire metadata bag.
 def test_hash_only_explicit_model_name_kwarg_appears_in_metadata() -> None:
-    client_mod._mode = "hash-only"
-    client_mod._org_salt = None
+    client_mod._transport._mode = "hash-only"
+    client_mod._transport._org_salt = None
     agent = _make_agent()
 
-    with patch("asqav.client._post", return_value=MOCK_SIGN_RESPONSE) as mock_post:
+    with patch("asqav.client._transport._post", return_value=MOCK_SIGN_RESPONSE) as mock_post:
         agent.sign("api:call", {"prompt": "hi"}, model_name="claude-opus-4-7")
 
     _, body = mock_post.call_args[0]
@@ -194,11 +187,11 @@ def test_hash_only_explicit_model_name_kwarg_appears_in_metadata() -> None:
 
     # Passing parent_id=... to sign() surfaces it in the wire metadata bag.
 def test_hash_only_explicit_parent_id_kwarg_appears_in_metadata() -> None:
-    client_mod._mode = "hash-only"
-    client_mod._org_salt = None
+    client_mod._transport._mode = "hash-only"
+    client_mod._transport._org_salt = None
     agent = _make_agent()
 
-    with patch("asqav.client._post", return_value=MOCK_SIGN_RESPONSE) as mock_post:
+    with patch("asqav.client._transport._post", return_value=MOCK_SIGN_RESPONSE) as mock_post:
         agent.sign("api:call", {"prompt": "hi"}, parent_id="act_parent_99")
 
     _, body = mock_post.call_args[0]
@@ -209,11 +202,11 @@ def test_full_payload_keeps_telemetry_in_context_only_not_duplicated() -> None:
     """In full-payload mode the three fields ride inside context (as
     ``_tool_name`` / ``_model_name`` / ``_parent_id``) and the body must
     not also carry a top-level metadata bag duplicating them."""
-    client_mod._mode = "full-payload"
-    client_mod._org_salt = None
+    client_mod._transport._mode = "full-payload"
+    client_mod._transport._org_salt = None
     agent = _make_agent()
 
-    with patch("asqav.client._post", return_value=MOCK_SIGN_RESPONSE) as mock_post:
+    with patch("asqav.client._transport._post", return_value=MOCK_SIGN_RESPONSE) as mock_post:
         agent.sign(
             "api:call",
             {"prompt": "hi"},
@@ -237,15 +230,15 @@ def test_hash_only_uses_hmac_when_org_salt_set() -> None:
     plain_algo = None
     salted_algo = None
 
-    client_mod._mode = "hash-only"
-    client_mod._org_salt = None
-    with patch("asqav.client._post", return_value=MOCK_SIGN_RESPONSE) as mock_post:
+    client_mod._transport._mode = "hash-only"
+    client_mod._transport._org_salt = None
+    with patch("asqav.client._transport._post", return_value=MOCK_SIGN_RESPONSE) as mock_post:
         agent.sign("api:call", {"k": 3})
         plain_hash = mock_post.call_args[0][1]["hash"]
         plain_algo = mock_post.call_args[0][1]["hash_algo"]
 
-    client_mod._org_salt = b"\x01" * 32
-    with patch("asqav.client._post", return_value=MOCK_SIGN_RESPONSE) as mock_post:
+    client_mod._transport._org_salt = b"\x01" * 32
+    with patch("asqav.client._transport._post", return_value=MOCK_SIGN_RESPONSE) as mock_post:
         agent.sign("api:call", {"k": 3})
         salted_hash = mock_post.call_args[0][1]["hash"]
         salted_algo = mock_post.call_args[0][1]["hash_algo"]
@@ -259,15 +252,15 @@ def test_hash_only_uses_hmac_when_org_salt_set() -> None:
 
     # asqav.init() should set _mode from the api_base_url when mode=auto.
 def test_init_resolves_mode_from_url() -> None:
-    saved_base = client_mod._api_base
+    saved_base = client_mod._transport._api_base
     try:
         # Cloud URL -> hash-only
         asqav.init(api_key="sk_test", base_url="https://api.asqav.com/api/v1")
-        assert client_mod._mode == "hash-only"
+        assert client_mod._transport._mode == "hash-only"
 
         # Self-hosted URL -> full-payload
         asqav.init(api_key="sk_test", base_url="http://localhost:8000")
-        assert client_mod._mode == "full-payload"
+        assert client_mod._transport._mode == "full-payload"
 
         # Explicit override
         asqav.init(
@@ -275,6 +268,6 @@ def test_init_resolves_mode_from_url() -> None:
             base_url="https://api.asqav.com/api/v1",
             mode="full-payload",
         )
-        assert client_mod._mode == "full-payload"
+        assert client_mod._transport._mode == "full-payload"
     finally:
-        client_mod._api_base = saved_base
+        client_mod._transport._api_base = saved_base

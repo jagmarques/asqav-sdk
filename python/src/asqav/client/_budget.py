@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-if TYPE_CHECKING:
-    from . import Agent, SignatureResponse
+from ._agent import Agent
+from ._models import SignatureResponse
 
 
     # Result of a budget pre-check for an agent action.

@@ -11,7 +11,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from asqav import client as client_mod
-from asqav.client import _join_url
+from asqav.client._transport import _join_url
 
 BASE_WITH_PATH = "https://api.asqav.com/api/v1"
 BASE_NO_PATH = "https://api.asqav.com"
@@ -88,11 +88,11 @@ def test_urllib_fallback_requests_same_url_as_httpx(
         captured["url"] = request.full_url
         return _FakeResponse()
 
-    monkeypatch.setattr(client_mod, "_api_key", "sk_test")
-    monkeypatch.setattr(client_mod, "_api_base", base)
+    monkeypatch.setattr(client_mod._transport, "_api_key", "sk_test")
+    monkeypatch.setattr(client_mod._transport, "_api_base", base)
     monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
 
-    client_mod._urllib_request("POST", "/agents/create", {"name": "qa"})
+    client_mod._transport._urllib_request("POST", "/agents/create", {"name": "qa"})
 
     assert captured["url"] == expected
     if base == BASE_WITH_PATH:
@@ -109,11 +109,11 @@ def test_urllib_fallback_never_strips_api_prefix(
         captured["url"] = request.full_url
         return _FakeResponse()
 
-    monkeypatch.setattr(client_mod, "_api_key", "sk_test")
-    monkeypatch.setattr(client_mod, "_api_base", BASE_WITH_PATH)
+    monkeypatch.setattr(client_mod._transport, "_api_key", "sk_test")
+    monkeypatch.setattr(client_mod._transport, "_api_base", BASE_WITH_PATH)
     monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
 
-    client_mod._urllib_request("POST", "/agents/create", {"name": "qa"})
+    client_mod._transport._urllib_request("POST", "/agents/create", {"name": "qa"})
 
     assert captured["url"].startswith("https://api.asqav.com/api/v1/")
 
@@ -131,9 +131,9 @@ def test_fetch_audit_pack_url_has_single_prefix(
     resp.json.return_value = {"receipts": []}
     fake_httpx.post.return_value = resp
 
-    monkeypatch.setattr(client_mod, "_api_key", "sk_test")
-    monkeypatch.setattr(client_mod, "_api_base", BASE_WITH_PATH)
-    monkeypatch.setattr(client_mod, "httpx", fake_httpx)
+    monkeypatch.setattr(client_mod._transport, "_api_key", "sk_test")
+    monkeypatch.setattr(client_mod._transport, "_api_base", BASE_WITH_PATH)
+    monkeypatch.setattr(client_mod._transport, "httpx", fake_httpx)
 
     compliance.fetch_audit_pack(
         start="2026-04-01T00:00:00Z", end="2026-05-01T00:00:00Z"

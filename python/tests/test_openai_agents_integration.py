@@ -30,7 +30,7 @@ from asqav.extras.openai_agents import AsqavGuardrail, GuardrailResult  # noqa: 
 
     # Create a guardrail with mocked asqav internals.
 def _make_guardrail() -> AsqavGuardrail:
-    with patch("asqav.client._api_key", "sk_test"):
+    with patch("asqav.client._transport._api_key", "sk_test"):
         with patch("asqav.extras._base.Agent") as mock_agent_cls:
             mock_agent_cls.create.return_value = MagicMock()
             return AsqavGuardrail(agent_name="test-openai-agent")

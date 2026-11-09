@@ -55,7 +55,7 @@ MOCK_SIGN_RESPONSE: dict = {
     # Build a logger with a mocked Agent and a temp index path.
 def _make_logger(tmp_path, **kwargs) -> AsqavSigningLogger:
     log_path = str(tmp_path / "index.jsonl")
-    with patch("asqav.client._api_key", "sk_test"), patch(
+    with patch("asqav.client._transport._api_key", "sk_test"), patch(
         "asqav.extras._base.Agent"
     ) as mock_agent_cls:
         mock_agent_cls.create.return_value = MagicMock()
@@ -192,7 +192,7 @@ class TestInitKeyResolution:
         log_path = str(tmp_path / "index.jsonl")
 
         # Key set ONLY on the client (as asqav.init does), no api_key=, no env.
-        with patch("asqav.client._api_key", "sk_test_init"), patch(
+        with patch("asqav.client._transport._api_key", "sk_test_init"), patch(
             "asqav.extras._base.Agent"
         ) as mock_agent_cls:
             mock_agent_cls.create.return_value = MagicMock()
@@ -215,7 +215,7 @@ class TestMissingKey:
     def test_no_key_warns_and_noops(self, tmp_path, monkeypatch, caplog):
         monkeypatch.delenv("ASQAV_API_KEY", raising=False)
         log_path = str(tmp_path / "index.jsonl")
-        with patch("asqav.client._api_key", None):
+        with patch("asqav.client._transport._api_key", None):
             logger = AsqavSigningLogger(log_path=log_path)
         assert logger._adapter is None
 

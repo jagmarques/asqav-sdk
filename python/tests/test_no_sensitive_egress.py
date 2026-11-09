@@ -101,9 +101,11 @@ def wire(monkeypatch, tmp_path):
     monkeypatch.delenv("ASQAV_MODE", raising=False)
     asqav.init(api_key="sk_test_egress", base_url=CLOUD)
     monkeypatch.setattr(
-        client_mod,
+        client_mod._transport,
         "_client",
-        httpx.Client(base_url=CLOUD, transport=transport, headers=client_mod._client.headers),
+        httpx.Client(
+            base_url=CLOUD, transport=transport, headers=client_mod._transport._client.headers
+        ),
     )
     real_async = httpx.AsyncClient
 
@@ -146,7 +148,7 @@ def _run_every_flow(tmp_path) -> None:
 
 def test_cloud_default_is_hash_only() -> None:
     asqav.init(api_key="sk_test_egress", base_url=CLOUD)
-    assert client_mod._mode == "hash-only"
+    assert client_mod._transport._mode == "hash-only"
 
 
 def test_no_planted_value_reaches_the_wire(wire) -> None:
@@ -162,7 +164,7 @@ def test_no_planted_value_reaches_the_wire(wire) -> None:
 def test_negative_control_full_payload_is_caught(wire) -> None:
     """A regression that ships the raw context must fail the egress check."""
     captured, tmp_path = wire
-    client_mod._mode = "full-payload"
+    client_mod._transport._mode = "full-payload"
     _run_every_flow(tmp_path)
     leaks = find_leaks(captured)
     for label in PLANTED:

@@ -23,9 +23,9 @@ from asqav.client import (
     RECEIPT_TYPE_NAMESPACE,
     Agent,
     SignatureResponse,
-    _build_sign_body,
-    _compute_action_ref,
 )
+from asqav.client._sign_body import _build_sign_body
+from asqav.client._sign_checks import _compute_action_ref
 
 # === Fixtures ===
 
@@ -83,7 +83,7 @@ def test_receipt_type_namespace_constant() -> None:
 
     # SDK rejects bad receipt_type without making a network call.
 def test_invalid_receipt_type_raises_before_http() -> None:
-    with patch("asqav.client._post") as p:
+    with patch("asqav.client._transport._post") as p:
         with pytest.raises(ValueError, match="invalid_receipt_type"):
             _agent().sign(
                 "api:call",
@@ -96,7 +96,7 @@ def test_invalid_receipt_type_raises_before_http() -> None:
 
     # `policy_decision=deny` without `reason` is rejected client-side.
 def test_deny_without_reason_raises_before_http() -> None:
-    with patch("asqav.client._post") as p:
+    with patch("asqav.client._transport._post") as p:
         with pytest.raises(ValueError, match="missing_reason"):
             _agent().sign(
                 "api:call",
@@ -130,7 +130,7 @@ def test_compliance_mode_auto_computes_action_ref() -> None:
         captured["body"] = body
         return _ok_response()
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign(
             "api:call",
             {"a": 1, "b": 2},
@@ -154,7 +154,7 @@ def test_compliance_mode_caller_supplied_action_ref_wins() -> None:
         return _ok_response()
 
     forced = "sha256:" + "a" * 64
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign(
             "api:call",
             {"x": 1},
@@ -177,7 +177,7 @@ def test_no_compliance_mode_means_no_extra_fields_on_body() -> None:
         captured["body"] = body
         return _ok_response()
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign("api:call", {"k": "v"}, compliance_mode=False)
 
     body = captured["body"]
@@ -207,7 +207,7 @@ def test_all_profile_fields_passthrough_in_body() -> None:
         captured["body"] = body
         return _ok_response()
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign(
             "api:call",
             {"k": "v"},
@@ -240,7 +240,7 @@ def test_deny_with_reason_passes_through() -> None:
         captured["body"] = body
         return _ok_response()
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign(
             "api:call",
             {"k": "v"},
@@ -270,7 +270,7 @@ def test_signature_response_surfaces_new_fields() -> None:
         "reason": None,
         "previousReceiptHash": "0" * 64,
     }
-    with patch("asqav.client._post", return_value=_ok_response(extra)):
+    with patch("asqav.client._transport._post", return_value=_ok_response(extra)):
         resp: SignatureResponse = _agent().sign(
             "api:call",
             {"k": "v"},
@@ -295,7 +295,7 @@ def test_response_accepts_snake_case_previous_receipt_hash() -> None:
         "receipt_type": "protectmcp:decision",
         "previous_receipt_hash": "f" * 64,
     }
-    with patch("asqav.client._post", return_value=_ok_response(extra)):
+    with patch("asqav.client._transport._post", return_value=_ok_response(extra)):
         resp = _agent().sign("api:call", {}, compliance_mode=True)
     assert resp.previous_receipt_hash == "f" * 64
 
@@ -364,7 +364,7 @@ def test_canonical_incident_class_passes_validation(value: str) -> None:
         captured["body"] = body
         return _ok_response()
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign(
             "api:call",
             {"k": "v"},
@@ -376,7 +376,7 @@ def test_canonical_incident_class_passes_validation(value: str) -> None:
 
     # A token outside the canonical six is rejected before the HTTP call.
 def test_invalid_incident_class_raises_before_http() -> None:
-    with patch("asqav.client._post") as p:
+    with patch("asqav.client._transport._post") as p:
         with pytest.raises(ValueError, match="invalid_incident_class"):
             _agent().sign(
                 "api:call",
@@ -396,7 +396,7 @@ def test_pre_alignment_token_now_rejected() -> None:
         "human_error",
         "unknown",
     ):
-        with patch("asqav.client._post") as p:
+        with patch("asqav.client._transport._post") as p:
             with pytest.raises(ValueError, match="invalid_incident_class"):
                 _agent().sign(
                     "api:call",
@@ -423,7 +423,7 @@ def test_hipaa_security_incident_token_accepted() -> None:
         return _ok_response()
 
     assert "hipaa_security_incident" in HIPAA_INCIDENT_CLASS_NAMESPACE
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign(
             "api:call",
             {"k": "v"},
@@ -443,7 +443,7 @@ def test_incident_class_list_form_accepted_with_mixed_regimes() -> None:
         captured["body"] = body
         return _ok_response()
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign(
             "api:call",
             {"k": "v"},
@@ -459,7 +459,7 @@ def test_incident_class_list_form_accepted_with_mixed_regimes() -> None:
 def test_incident_class_list_rejects_unknown_token_in_array() -> None:
     """A single bad token in an array MUST fail preflight; otherwise a
     typo travels to the cloud and lands a non-conformant receipt."""
-    with patch("asqav.client._post") as p:
+    with patch("asqav.client._transport._post") as p:
         with pytest.raises(ValueError, match="invalid_incident_class"):
             _agent().sign(
                 "api:call",
@@ -492,7 +492,7 @@ def test_canonical_sandbox_state_passes_preflight(value: str) -> None:
         captured["body"] = body
         return _ok_response()
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign(
             "api:call",
             {"k": "v"},
@@ -505,7 +505,7 @@ def test_canonical_sandbox_state_passes_preflight(value: str) -> None:
 def test_invalid_sandbox_state_raises_before_http() -> None:
     """A value outside the upstream enum is rejected client-side; this
     closes the SDK side of GAP-E3 (cloud was the only enforcer)."""
-    with patch("asqav.client._post") as p:
+    with patch("asqav.client._transport._post") as p:
         with pytest.raises(ValueError, match="invalid_sandbox_state"):
             _agent().sign(
                 "api:call",

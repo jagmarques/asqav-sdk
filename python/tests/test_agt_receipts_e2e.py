@@ -193,7 +193,7 @@ def lei_stub(monkeypatch: pytest.MonkeyPatch):
 def _serve(monkeypatch: pytest.MonkeyPatch, server: _AsqavStub):
     server.thread.start()
     for name in ("_api_key", "_api_base", "_client", "_mode", "_org_salt", "_timeout"):
-        monkeypatch.setattr(asqav_client, name, getattr(asqav_client, name))
+        monkeypatch.setattr(asqav_client._transport, name, getattr(asqav_client._transport, name))
     asqav_client.init(api_key="sk_test_agt763", base_url=server.base)
     yield server
     server.httpd.shutdown()

@@ -199,25 +199,25 @@ def fetch_audit_pack(
     Returns the cloud response dict (bundle_digest, bundle_signature, receipts,
     regime_mapping, revocation_manifest, algorithm_registry_version).
     """
-    from . import client as _client
+    from .client import _transport
 
-    if _client._api_key is None:
+    if _transport._api_key is None:
         raise RuntimeError("asqav.init(api_key=...) must be called first.")
-    if _client.httpx is None:
+    if not _transport._HTTPX_AVAILABLE:
         raise RuntimeError("httpx is required; install with `pip install asqav[http]`.")
 
-    url = _client._join_url(_client._api_base, "/audit-pack/export")
+    url = _transport._join_url(_transport._api_base, "/audit-pack/export")
     body = {"start": start, "end": end, "only_compliance": only_compliance}
     if agent_id is not None:
         body["agent_id"] = agent_id
 
     from ._useragent import USER_AGENT
 
-    resp = _client.httpx.post(
+    resp = _transport.httpx.post(
         url,
         json=body,
         headers={
-            "Authorization": f"Bearer {_client._api_key}",
+            "Authorization": f"Bearer {_transport._api_key}",
             "User-Agent": USER_AGENT,
         },
         timeout=30.0,

@@ -28,6 +28,7 @@ names | tests: test files named after the module.
 - `_jcs.py` - JCS canonicalization for the IETF Compliance Receipts profile | symbols: UnsafeIntegerError canonical_json | tests: python/tests/test_jcs.py typescript/tests/jcs.test.ts
 - `_mode.py` - Mode resolver for hash-only vs full-payload signing | tests: python/tests/test_mode_resolver.py typescript/tests/mode.test.ts
 - `_schema.py` - Dependency-free context-schema validator for ``Agent.sign`` | symbols: validate_context_schema normalize_context
+- `_sdk_constants.py` - Values the Python and TypeScript SDKs share, read from sdk_constants.json
 - `_sql_match.py` - Augment-match helper for destructive SQL action types | symbols: action_candidates matches_pattern
 - `_useragent.py` - Shared User-Agent for every outbound HTTP call the SDK makes | tests: typescript/tests/userAgent.test.ts
 - `acceptor.py` - Acceptor-side admission control for an inbound peer receipt | symbols: AcceptorDecision check_peer_receipt encode_receipt_header AcceptorMiddleware | tests: python/tests/test_acceptor.py typescript/tests/acceptor.test.ts
@@ -60,15 +61,29 @@ names | tests: test files named after the module.
 
 ## python/src/asqav/client/
 
-- `__init__.py` - Asqav API client: thin SDK for asqav.com | symbols: SignatureResponse Agent health_check emergency_halt init govern get_agent list_agents secure secure_async get_session_signatures verify_signature verify ComplianceReceiptVerification verify_compliance_receipt (+27 more)
+- `__init__.py` - Asqav API client: thin SDK for asqav.com
+- `_actions.py` - Applied attestations, output checks and approval requests | symbols: post_applied_attestation list_rejected_attempts verify_output request_action approve_action get_action_status
+- `_agent.py` - The Agent dataclass: create, get and delegate | symbols: Agent
+- `_agent_session.py` - Agent sessions, status changes, preflight and scope tokens | symbols: get_session_signatures
+- `_agent_sign.py` - Agent.sign: one signed action
+- `_agent_signing.py` - Agent methods built on sign: countersign, batches, output
+- `_agent_tokens.py` - Agent methods that issue tokens and acknowledgments
+- `_agents.py` - Module-level agent access: the global agent, secure() and govern() | symbols: emergency_halt govern get_agent list_agents secure secure_async
+- `_audit.py` - Session listing, audit exports and attestations | symbols: list_sessions export_audit_json export_audit_csv generate_attestation verify_attestation | tests: python/tests/test_audit_pack_export_signed_bytes.py python/tests/test_audit_pack_offline_verify.py typescript/tests/audit-pack-offline.test.ts
 - `_budget.py` - Client-side spend budget tracking | symbols: BudgetCheckResult BudgetTracker | tests: typescript/tests/budget.test.ts
 - `_common.py` - Shared type variable, logger and value helpers for the client | symbols: generate_trace_id
+- `_compliance_receipt.py` - Offline checks of a compliance receipt | symbols: ComplianceReceiptVerification verify_compliance_receipt
 - `_delegations.py` - Delegation management | symbols: create_delegation list_delegations get_delegation revoke_delegation
 - `_errors.py` - Client exceptions and the messages they carry | symbols: AsqavError AuthenticationError RateLimitError APIError AsqavConnectionError AsqavValidationError AsqavResponseError require_field
-- `_models.py` - Response objects returned by the client | symbols: SigningGroupResponse SigningEntityResponse GroupKeypairResponse GroupSignResponse ApprovalResponse RiskRuleResponse DelegationResponse KeyRefreshResponse ShareRecoveryResponse VerificationDetail ExecutionEvidence BitcoinAnchorStatus VerificationResponse SignedActionResponse SignatureDetail (+8 more)
-- `_sign_checks.py` - Client-side digests and validators for the fields a signing call carries | symbols: RiskSnapshot AuthoredBy
-- `_spans.py` - Tracing spans and their OpenTelemetry export | symbols: Span span_to_otel export_spans span get_current_span configure_otel flush_spans
-- `_vocabulary.py` - Receipt namespaces and decision vocabularies
+- `_models.py` - Response objects returned by the client | symbols: AgentResponse TokenResponse BitcoinAnchor SignatureResponse SessionResponse SDTokenResponse CertificateResponse VerificationDetail ExecutionEvidence BitcoinAnchorStatus VerificationResponse SignedActionResponse SignatureDetail SigningSessionResponse ApprovalResponse (+9 more)
+- `_risk_rules.py` - Risk rule management | symbols: create_risk_rule list_risk_rules get_risk_rule update_risk_rule delete_risk_rule
+- `_sign_body.py` - Building and validating the body Agent.sign posts
+- `_sign_checks.py` - Validation of signing inputs: risk, code authorship and digests | symbols: RiskSnapshot AuthoredBy
+- `_signing_groups.py` - Signing groups, entities and threshold keypairs | symbols: create_signing_group get_signing_group update_signing_group add_entity list_entities remove_entity generate_keypair get_keypair group_sign refresh_keypair recover_share
+- `_spans.py` - Tracing spans and their OpenTelemetry export | symbols: Span span get_current_span configure_otel span_to_otel export_spans flush_spans
+- `_transport.py` - API configuration, retries and the HTTP calls every client function makes | symbols: health_check init
+- `_verify.py` - Signature verification against the API | symbols: verify_signature verify | tests: python/tests/test_verify_classify_separation.py python/tests/test_verify_compliance_receipt.py python/tests/test_verify_litellm_log_cli.py
+- `_vocabulary.py` - Receipt namespaces, decision maps and payload field lookups
 
 ## python/src/asqav/extras/
 

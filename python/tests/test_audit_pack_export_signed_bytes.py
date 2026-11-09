@@ -38,7 +38,7 @@ def _export(sent: dict[str, Any], **overrides: Any) -> None:
     }
     kwargs.update(overrides)
     with (
-        mock.patch.object(client, "_post", fake_post),
+        mock.patch.object(client._transport, "_post", fake_post),
         mock.patch.object(cli, "_init_sdk", lambda: None),
     ):
         cli.audit_pack_export(**kwargs)

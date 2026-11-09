@@ -61,7 +61,7 @@ def test_async_countersign_method_exists() -> None:
     assert "signature_id" in sig.parameters
 
 
-@patch("asqav.client._post")
+@patch("asqav.client._transport._post")
 def test_sign_forwards_co_signers_in_body(mock_post: object) -> None:
     mock_post.return_value = {  # type: ignore[attr-defined]
         "signature": "sig_bytes",
@@ -87,7 +87,7 @@ def test_sign_forwards_co_signers_in_body(mock_post: object) -> None:
     assert resp.countersign_url is not None
 
 
-@patch("asqav.client._post")
+@patch("asqav.client._transport._post")
 def test_sign_without_co_signers_omits_field(mock_post: object) -> None:
     mock_post.return_value = {  # type: ignore[attr-defined]
         "signature": "sig_bytes",
@@ -105,7 +105,7 @@ def test_sign_without_co_signers_omits_field(mock_post: object) -> None:
     assert resp.co_signatures is None
 
 
-@patch("asqav.client._post")
+@patch("asqav.client._transport._post")
 def test_countersign_posts_to_correct_path(mock_post: object) -> None:
     mock_post.return_value = {  # type: ignore[attr-defined]
         "signature": "sig_bytes",

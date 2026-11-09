@@ -89,7 +89,7 @@ def test_verification_response_exposes_ietf_projection_fields() -> None:
     """`type`, `bitcoin_anchor`, `signature_envelope`, `anchors`,
     `algorithm_registry_version` are accessible on the parsed response."""
     payload = _full_cloud_payload()
-    with patch("asqav.client.httpx.get", return_value=_mock_httpx(payload)):
+    with patch("asqav.client._transport.httpx.get", return_value=_mock_httpx(payload)):
         response = verify_signature("sig_test_full")
 
     assert isinstance(response, VerificationResponse)
@@ -110,7 +110,7 @@ def test_execution_evidence_parses_from_cloud_payload() -> None:
     """`execution_evidence` parses into the ExecutionEvidence dataclass,
     mirroring the cloud's projection (result_bound, result_digest)."""
     payload = _full_cloud_payload()
-    with patch("asqav.client.httpx.get", return_value=_mock_httpx(payload)):
+    with patch("asqav.client._transport.httpx.get", return_value=_mock_httpx(payload)):
         response = verify_signature("sig_test_full")
 
     evidence = response.execution_evidence
@@ -126,7 +126,7 @@ def test_verification_detail_exposes_extra_sub_axes() -> None:
     """`anchor_valid_ots`, `anchor_valid_rfc3161`, `policy_digest_resolved`,
     `duplicate_emission_candidate` populate from the parser."""
     payload = _full_cloud_payload()
-    with patch("asqav.client.httpx.get", return_value=_mock_httpx(payload)):
+    with patch("asqav.client._transport.httpx.get", return_value=_mock_httpx(payload)):
         response = verify_signature("sig_test_full")
 
     detail = response.verification_detail
@@ -153,7 +153,7 @@ def test_minimal_response_leaves_new_fields_none() -> None:
         "verified": True,
         "verification_url": "https://verify.example/sig_minimal",
     }
-    with patch("asqav.client.httpx.get", return_value=_mock_httpx(payload)):
+    with patch("asqav.client._transport.httpx.get", return_value=_mock_httpx(payload)):
         response = verify_signature("sig_minimal")
 
     assert response.type == "signature"
@@ -170,7 +170,7 @@ def test_regimes_satisfied_present() -> None:
     list of regulator tokens. Cloud PR #337 added this field after the
     SDK projection PR #160 landed; this pins the SDK now reads it."""
     payload = _full_cloud_payload()
-    with patch("asqav.client.httpx.get", return_value=_mock_httpx(payload)):
+    with patch("asqav.client._transport.httpx.get", return_value=_mock_httpx(payload)):
         response = verify_signature("sig_test_full")
 
     detail = response.verification_detail
@@ -187,7 +187,7 @@ def test_anchor_type_accepts_opentimestamps_and_rfc3161() -> None:
         {"type": "rfc3161", "value": "ZmFrZQ=="},
         {"type": "opentimestamps", "value": "Y2Fub25pY2Fs"},
     ]
-    with patch("asqav.client.httpx.get", return_value=_mock_httpx(payload)):
+    with patch("asqav.client._transport.httpx.get", return_value=_mock_httpx(payload)):
         response = verify_signature("sig_test_full")
 
     assert response.anchors is not None

@@ -10,12 +10,8 @@ from unittest.mock import patch
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 import asqav
-from asqav.client import (
-    ApprovalResponse,
-    SignatureDetail,
-    SigningSessionResponse,
-    _parse_signing_session,
-)
+from asqav.client import ApprovalResponse, SignatureDetail, SigningSessionResponse
+from asqav.client._actions import _parse_signing_session
 
 # === Fixtures ===
 
@@ -85,7 +81,7 @@ MOCK_APPROVE_APPROVED: dict = {
 
 
     # request_action calls POST /signing-groups/sessions with correct body.
-@patch("asqav.client._post")
+@patch("asqav.client._transport._post")
 def test_request_action(mock_post: object) -> None:
     mock_post.return_value = MOCK_SESSION_RESPONSE  # type: ignore[attr-defined]
 
@@ -110,7 +106,7 @@ def test_request_action(mock_post: object) -> None:
 
 
     # request_action includes params in the request body when provided.
-@patch("asqav.client._post")
+@patch("asqav.client._transport._post")
 def test_request_action_with_params(mock_post: object) -> None:
     mock_post.return_value = MOCK_SESSION_WITH_PARAMS  # type: ignore[attr-defined]
 
@@ -133,7 +129,7 @@ def test_request_action_with_params(mock_post: object) -> None:
 
 
     # request_action does not send 'params' key when params is None.
-@patch("asqav.client._post")
+@patch("asqav.client._transport._post")
 def test_request_action_without_params_omits_key(mock_post: object) -> None:
     mock_post.return_value = MOCK_SESSION_RESPONSE  # type: ignore[attr-defined]
 
@@ -147,7 +143,7 @@ def test_request_action_without_params_omits_key(mock_post: object) -> None:
 
 
     # approve_action calls POST /signing-groups/sessions/{id}/approve.
-@patch("asqav.client._post")
+@patch("asqav.client._transport._post")
 def test_approve_action(mock_post: object) -> None:
     mock_post.return_value = MOCK_APPROVE_RESPONSE  # type: ignore[attr-defined]
 
@@ -170,7 +166,7 @@ def test_approve_action(mock_post: object) -> None:
 
 
     # approve_action returns approved=True when approvals are met.
-@patch("asqav.client._post")
+@patch("asqav.client._transport._post")
 def test_approve_action_approved(mock_post: object) -> None:
     mock_post.return_value = MOCK_APPROVE_APPROVED  # type: ignore[attr-defined]
 
@@ -188,7 +184,7 @@ def test_approve_action_approved(mock_post: object) -> None:
 
 
     # get_action_status calls GET /signing-groups/sessions/{id}.
-@patch("asqav.client._get")
+@patch("asqav.client._transport._get")
 def test_get_action_status(mock_get: object) -> None:
     mock_get.return_value = MOCK_SESSION_RESPONSE  # type: ignore[attr-defined]
 
@@ -203,7 +199,7 @@ def test_get_action_status(mock_get: object) -> None:
 
 
     # get_action_status returns full details for approved session.
-@patch("asqav.client._get")
+@patch("asqav.client._transport._get")
 def test_get_action_status_approved(mock_get: object) -> None:
     mock_get.return_value = MOCK_SESSION_APPROVED  # type: ignore[attr-defined]
 
@@ -259,7 +255,7 @@ def test_sign_accepts_counterparty_kwarg() -> None:
 
 
     # counterparty kwarg lands in context under _counterparty.
-@patch("asqav.client._post")
+@patch("asqav.client._transport._post")
 def test_sign_passes_counterparty_into_context(mock_post: object) -> None:
     mock_post.return_value = {  # type: ignore[attr-defined]
         "signature": "sig_bytes",
@@ -294,7 +290,7 @@ def _make_agent() -> "asqav.Agent":
 
 
     # sign_batch returns one SignatureResponse per input action.
-@patch("asqav.client._post")
+@patch("asqav.client._transport._post")
 def test_sign_batch_returns_n_signatures(mock_post: object) -> None:
     mock_post.return_value = {  # type: ignore[attr-defined]
         "signatures": [
@@ -319,7 +315,7 @@ def test_sign_batch_returns_n_signatures(mock_post: object) -> None:
 
 
     # sign_batch returns None for items the server failed to sign.
-@patch("asqav.client._post")
+@patch("asqav.client._transport._post")
 def test_sign_batch_handles_partial_failure(mock_post: object) -> None:
     mock_post.return_value = {  # type: ignore[attr-defined]
         "signatures": [

@@ -115,7 +115,7 @@ from asqav.extras.langchain import AsqavCallbackHandler  # noqa: E402, I001
 @pytest.fixture()
 def handler():
     with (
-        patch("asqav.client._api_key", "sk_test"),
+        patch("asqav.client._transport._api_key", "sk_test"),
         patch("asqav.extras._base.Agent") as mock_agent_cls,
     ):
         mock_agent_cls.create.return_value = MagicMock()
@@ -293,7 +293,7 @@ def test_fail_open_on_sign_error():
     whose sign method raises AsqavError, verifying the fail-open path.
     """
     with (
-        patch("asqav.client._api_key", "sk_test"),
+        patch("asqav.client._transport._api_key", "sk_test"),
         patch("asqav.extras._base.Agent") as mock_agent_cls,
     ):
         mock_agent = MagicMock()
@@ -352,7 +352,7 @@ def clean_hook_state():
     # One call registers exactly one langchain configure hook.
 def test_enable_registers_configure_hook(clean_hook_state):
     with (
-        patch("asqav.client._api_key", "sk_test"),
+        patch("asqav.client._transport._api_key", "sk_test"),
         patch("asqav.extras._base.Agent") as mock_agent_cls,
     ):
         mock_agent_cls.create.return_value = MagicMock()
@@ -372,7 +372,7 @@ def test_default_on_signs_without_explicit_callbacks(clean_hook_state):
     handler, no signing happens, and this assertion fails.
     """
     with (
-        patch("asqav.client._api_key", "sk_test"),
+        patch("asqav.client._transport._api_key", "sk_test"),
         patch("asqav.extras._base.Agent") as mock_agent_cls,
     ):
         mock_agent_cls.create.return_value = MagicMock()
@@ -458,7 +458,7 @@ def test_on_chain_start_dict_serialized_non_dict_inputs_signs_receipt(handler):
     # Repeated enable calls register the hook once and rebind the ContextVar.
 def test_enable_hook_registered_once_across_calls(clean_hook_state):
     with (
-        patch("asqav.client._api_key", "sk_test"),
+        patch("asqav.client._transport._api_key", "sk_test"),
         patch("asqav.extras._base.Agent") as mock_agent_cls,
     ):
         mock_agent_cls.create.return_value = MagicMock()

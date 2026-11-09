@@ -53,7 +53,7 @@ def _make_client(
 @pytest.fixture()
 def hook() -> AsqavLettaHook:
     with (
-        patch("asqav.client._api_key", "sk_test"),
+        patch("asqav.client._transport._api_key", "sk_test"),
         patch("asqav.extras._base.Agent") as mock_agent_cls,
     ):
         mock_agent_cls.create.return_value = MagicMock()
