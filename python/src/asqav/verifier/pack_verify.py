@@ -410,6 +410,66 @@ def trusted_anchor_times(receipts: list, tsa_keys: list, headers) -> list:
     return times
 
 
+NO_ANCHOR_NOTE = "no anchors in the pack: the signer holds the key, so the pack alone does not prove anything against the operator"
+UNVERIFIED_ANCHOR_NOTE = "anchors are present but none verified against external material; the pack alone does not prove anything against the operator"
+VERIFIED_ANCHOR_NOTE = "{n} external anchor(s) verified against material that is not the pack's operator key"
+
+
+def _pack_bound(pack: dict) -> bytes | None:
+    digest = pack.get("bundle_digest")
+    if not isinstance(digest, str) or not digest.startswith("sha256:"):
+        return None
+    try:
+        raw = bytes.fromhex(digest[len("sha256:"):])
+    except ValueError:
+        return None
+    return raw if len(raw) == 32 else None
+
+
+def _anchor_outcome(anchor: object, bound: bytes | None, material, bitcoin_headers) -> tuple:
+    if bound is None or not isinstance(anchor, dict):
+        return "FAIL", "malformed anchor entry or pack without a bundle digest"
+    atype = anchor.get("type", "?")
+    blob = vr._anchor_bytes(anchor.get("value"))
+    if blob is None:
+        return "FAIL", f"{atype}: value MISSING or malformed"
+    if atype == "rfc3161":
+        outcome, detail, _when = vr._check_rfc3161_anchor(blob, bound, material)
+    elif atype == "opentimestamps":
+        outcome, detail, _when = vr._check_ots_anchor(blob, bound, bitcoin_headers)
+    else:
+        return "SKIPPED", f"{atype}: no offline verifier for this anchor type"
+    return ("PASS" if outcome == "verified" else "FAIL" if outcome == "invalid" else "SKIPPED",
+            f"{atype}: {detail}")
+
+
+def anchor_audit(pack: dict, tsa_keys=None, bitcoin_headers=None) -> dict:
+    """The pack's own anchors, checked by default; a failure is never a skip."""
+    anchors = pack["anchors"] if "anchors" in pack else []
+    anchors = anchors if isinstance(anchors, list) else [anchors]
+    operator = {pack.get("bundle_public_key")} | {k.get("public_key") for k in _jwks_keys(pack.get("jwks"))}
+    carried = pack.get("tsa_trust")
+    entries = carried if isinstance(carried, list) else [carried] if carried else []
+    material = list(tsa_keys or []) + [
+        vr.tsa_key_material(e.encode("utf-8")) for e in entries if isinstance(e, str) and e not in operator
+    ]
+    bound = _pack_bound(pack)
+    results = [_anchor_outcome(a, bound, material, bitcoin_headers) for a in anchors]
+    verified = sum(r == "PASS" for r, _ in results)
+    failed = sum(r == "FAIL" for r, _ in results)
+    reasons = [f"anchors: {note}" for r, note in results if r == "FAIL"]
+    if failed:
+        status, note = "failed", UNVERIFIED_ANCHOR_NOTE
+    elif verified:
+        status, note = "verified", VERIFIED_ANCHOR_NOTE.format(n=verified)
+    elif anchors:
+        status, note = "unverifiable", UNVERIFIED_ANCHOR_NOTE
+    else:
+        status, note = "none", NO_ANCHOR_NOTE
+    return {"status": status, "checked": len(anchors), "verified": verified,
+            "failed": failed, "reasons": reasons, "note": note}
+
+
 def _worst(statuses) -> str:
     return max(statuses, key=_RANK.__getitem__, default=VERIFIED)
 
@@ -441,7 +501,11 @@ def verify_pack(pack: dict, *, jwks: dict | None = None, tsa_keys=None, bitcoin_
         for i, r in enumerate(receipts)
     ]
     counts = {s: sum(1 for r in results if r["status"] == s) for s in (VERIFIED, NOT_OFFLINE, INVALID)}
-    status = _worst([bundle["status"]] + [r["status"] for r in results])
+    audit = anchor_audit(pack, tsa_keys=pinned, bitcoin_headers=bitcoin_headers)
+    statuses = [bundle["status"]] + [r["status"] for r in results]
+    if audit["failed"]:
+        statuses.append(INVALID)
+    status = _worst(statuses)
     if status != INVALID and not anchored:
         status = SELF_CONSISTENT
     return {
@@ -450,6 +514,9 @@ def verify_pack(pack: dict, *, jwks: dict | None = None, tsa_keys=None, bitcoin_
         "bundle": bundle,
         "receipts": results,
         "summary": {"total": len(results), **counts},
+        "operator_independent": audit["verified"] > 0,
+        "operator_independence_note": audit["note"],
+        "anchors": audit,
         "trust": {
             "anchored": anchored,
             "keys": "supplied key set" if anchored else "pack key snapshot (self-asserted)",
