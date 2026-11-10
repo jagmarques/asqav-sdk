@@ -69,35 +69,8 @@ _ORG_ID = "org_test"
 _FIXTURE = Path(__file__).parent / "fixtures" / "attestation_receipt_v2.json"
 
 
-    # Return (sign(message) -> bytes, verify(message, sig) -> bool) for a fresh key.
-def _ed25519_signer():
+def _verifier(public):
     from cryptography.exceptions import InvalidSignature
-    from cryptography.hazmat.primitives.asymmetric import ed25519
-
-    private = ed25519.Ed25519PrivateKey.generate()
-    public = private.public_key()
-
-    def verify(message: bytes, signature: bytes) -> bool:
-        try:
-            public.verify(signature, message)
-            return True
-        except InvalidSignature:
-            return False
-
-    return private.sign, verify
-
-
-def _load_v2_fixture() -> dict:
-    return json.loads(_FIXTURE.read_text(encoding="utf-8"))
-
-
-def _fixture_verifier(fixture: dict):
-    from cryptography.exceptions import InvalidSignature
-    from cryptography.hazmat.primitives.asymmetric import ed25519
-
-    public = ed25519.Ed25519PublicKey.from_public_bytes(
-        base64.b64decode(fixture["agent_public_key"])
-    )
 
     def verify(message: bytes, signature: bytes) -> bool:
         try:
@@ -107,6 +80,27 @@ def _fixture_verifier(fixture: dict):
             return False
 
     return verify
+
+
+    # Return (sign, verify) for a fresh Ed25519 key.
+def _ed25519_signer():
+    from cryptography.hazmat.primitives.asymmetric import ed25519
+
+    private = ed25519.Ed25519PrivateKey.generate()
+    return private.sign, _verifier(private.public_key())
+
+
+def _load_v2_fixture() -> dict:
+    return json.loads(_FIXTURE.read_text(encoding="utf-8"))
+
+
+def _fixture_verifier(fixture: dict):
+    from cryptography.hazmat.primitives.asymmetric import ed25519
+
+    public = ed25519.Ed25519PublicKey.from_public_bytes(
+        base64.b64decode(fixture["agent_public_key"])
+    )
+    return _verifier(public)
 
 
 def _signed_message(claim: dict = _CLAIM) -> bytes:
@@ -440,7 +434,7 @@ def test_explicit_signed_message_without_proof_is_unverified() -> None:
     assert by_name["inclusion"] == "SKIP"
 
 
-    # NEGCTL: a flipped commitment with a matching hash breaks the signature.
+    # NEGCTL: one flipped commitment byte breaks the signature.
 def test_v2_commitment_byte_flip_fails_signature() -> None:
     receipt, verify = _v2_receipt()
     commitment = receipt["commitment"]
