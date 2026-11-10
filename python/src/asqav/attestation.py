@@ -43,6 +43,9 @@ SIGNED_MESSAGE_VERSION_V1 = 1
 #: Field naming the version; without it, v1-only fields date the receipt
 VERSION_FIELD = "signedMessageVersion"
 
+#: Domain separator inside the signed message
+SIGNED_MESSAGE_MODE = "attestation"
+
 #: Receipt fields only a v1 signed message names
 V1_ONLY_FIELDS = ("actionId", "agentId", "orgId", "claimType")
 
@@ -104,7 +107,7 @@ def compute_statement_hash(
     return "sha256:" + hashlib.sha256(canonical_json(statement_payload)).hexdigest()
 
 
-def reconstruct_signed_message(
+def _build_signed_message_v1(
     *,
     statement_hash: str,
     commitment: str,
@@ -116,15 +119,10 @@ def reconstruct_signed_message(
     agent_id: str,
     org_id: str,
 ) -> bytes:
-    """Return the canonical signed-message bytes the cloud agent signed.
-
-    Byte-for-byte mirror of the cloud's message payload. A caller rebuilds
-    this from the receipt plus its own action_id/agent_id/org_id records and
-    verifies the receipt signature over these exact bytes.
-    """
+    """Return the historical 11-key v1 signed-message bytes."""
     message_payload = {
-        "v": 1,
-        "mode": "attestation",
+        "v": SIGNED_MESSAGE_VERSION_V1,
+        "mode": SIGNED_MESSAGE_MODE,
         "statement_hash": statement_hash,
         "commitment": commitment,
         "commitment_alg": commitment_alg,
@@ -148,7 +146,7 @@ def signed_message_version(receipt: dict[str, Any]) -> int:
     return SIGNED_MESSAGE_VERSION
 
 
-def signed_message_from_receipt(receipt: dict[str, Any]) -> bytes:
+def reconstruct_signed_message(receipt: dict[str, Any]) -> bytes:
     """Rebuild the signed bytes from the receipt, refusing a missing field."""
     version = signed_message_version(receipt)
     if version == SIGNED_MESSAGE_VERSION_V1:
@@ -163,7 +161,7 @@ def signed_message_from_receipt(receipt: dict[str, Any]) -> bytes:
             + ", ".join(missing)
         )
     if version == SIGNED_MESSAGE_VERSION_V1:
-        return reconstruct_signed_message(
+        return _build_signed_message_v1(
             statement_hash=receipt["statementHash"],
             commitment=receipt["commitment"],
             commitment_alg=receipt["commitmentAlg"],
@@ -177,7 +175,7 @@ def signed_message_from_receipt(receipt: dict[str, Any]) -> bytes:
     return canonical_json(
         {
             "v": SIGNED_MESSAGE_VERSION,
-            "mode": "attestation",
+            "mode": SIGNED_MESSAGE_MODE,
             "statement_hash": receipt["statementHash"],
             "commitment": receipt["commitment"],
             "commitment_alg": receipt["commitmentAlg"],
@@ -185,6 +183,11 @@ def signed_message_from_receipt(receipt: dict[str, Any]) -> bytes:
             "server_timestamp": receipt["timestamp"],
         }
     )
+
+
+def signed_message_from_receipt(receipt: dict[str, Any]) -> bytes:
+    """Rebuild the signed bytes from the receipt, refusing a missing field."""
+    return reconstruct_signed_message(receipt)
 
 
 # === Pure Merkle helpers (certificate-transparency 6962-style) ===
@@ -332,7 +335,7 @@ def verify_attestation_offline(
         axes.append(_axis("signature", sig_result, sig_note))
     else:
         try:
-            rebuilt = signed_message_from_receipt(receipt)
+            rebuilt = reconstruct_signed_message(receipt)
         except ValueError as exc:
             axes.append(_axis("signature", _AXIS_FAIL, str(exc)))
         else:

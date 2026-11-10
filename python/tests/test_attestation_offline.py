@@ -30,6 +30,7 @@ from asqav.attestation import (
     DEFAULT_COMMITMENT_ALG,
     FAILURE_INVALID,
     FAILURE_UNVERIFIABLE,
+    SIGNED_MESSAGE_MODE,
     VERDICT_UNVERIFIED,
     VERDICT_VERIFIED_KEYED,
     compute_statement_hash,
@@ -64,6 +65,9 @@ _ACTION_ID = "act_test"
 _AGENT_ID = "agt_test"
 _ORG_ID = "org_test"
 
+# Fixture minted from asqav's build_signed_message with a throwaway Ed25519 key.
+_FIXTURE = Path(__file__).parent / "fixtures" / "attestation_receipt_v2.json"
+
 
     # Return (sign(message) -> bytes, verify(message, sig) -> bool) for a fresh key.
 def _ed25519_signer():
@@ -83,18 +87,42 @@ def _ed25519_signer():
     return private.sign, verify
 
 
+def _load_v2_fixture() -> dict:
+    return json.loads(_FIXTURE.read_text(encoding="utf-8"))
+
+
+def _fixture_verifier(fixture: dict):
+    from cryptography.exceptions import InvalidSignature
+    from cryptography.hazmat.primitives.asymmetric import ed25519
+
+    public = ed25519.Ed25519PublicKey.from_public_bytes(
+        base64.b64decode(fixture["agent_public_key"])
+    )
+
+    def verify(message: bytes, signature: bytes) -> bool:
+        try:
+            public.verify(signature, message)
+            return True
+        except InvalidSignature:
+            return False
+
+    return verify
+
+
 def _signed_message(claim: dict = _CLAIM) -> bytes:
     statement_hash = compute_statement_hash(claim, _COMMITMENT, _KEY_ID, _TIMESTAMP)
     return reconstruct_signed_message(
-        statement_hash=statement_hash,
-        commitment=_COMMITMENT,
-        commitment_alg="HMAC-SHA256",
-        key_id=_KEY_ID,
-        claim_type=claim["type"],
-        server_timestamp=_TIMESTAMP,
-        action_id=_ACTION_ID,
-        agent_id=_AGENT_ID,
-        org_id=_ORG_ID,
+        {
+            "statementHash": statement_hash,
+            "commitment": _COMMITMENT,
+            "commitmentAlg": DEFAULT_COMMITMENT_ALG,
+            "keyId": _KEY_ID,
+            "claimType": claim["type"],
+            "timestamp": _TIMESTAMP,
+            "actionId": _ACTION_ID,
+            "agentId": _AGENT_ID,
+            "orgId": _ORG_ID,
+        }
     )
 
 
@@ -188,17 +216,31 @@ def test_reconstruct_signed_message_mirrors_cloud_shape() -> None:
         "agent_id", "org_id",
     }
     assert message["v"] == 1
-    assert message["mode"] == "attestation"
+    assert message["mode"] == SIGNED_MESSAGE_MODE
     assert message["statement_hash"] == _GOLDEN_HASH
 
 
     # The v2 rebuild is byte-exact: golden bytes captured from asqav once.
+def test_reconstruct_v2_matches_cloud_bytes() -> None:
+    from asqav.attestation import SIGNED_MESSAGE_VERSION, signed_message_version
+
+    fixture = _load_v2_fixture()
+    expected = bytes.fromhex(fixture["expected_signed_message_bytes"])
+    assert expected == _V2_GOLDEN_MESSAGE
+    assert reconstruct_signed_message(fixture["receipt"]) == expected
+    assert signed_message_version(fixture["receipt"]) == SIGNED_MESSAGE_VERSION
+    payload = json.loads(expected)
+    assert "action_id" not in payload
+    assert payload.keys() == {
+        "v", "mode", "statement_hash", "commitment", "commitment_alg",
+        "key_id", "server_timestamp",
+    }
+    assert payload["v"] == SIGNED_MESSAGE_VERSION
+
+
+    # The receipt wrapper still rebuilds the same v2 bytes from its fields.
 def test_v2_signed_message_matches_cloud_bytes() -> None:
-    from asqav.attestation import (
-        SIGNED_MESSAGE_VERSION,
-        signed_message_from_receipt,
-        signed_message_version,
-    )
+    from asqav.attestation import SIGNED_MESSAGE_VERSION, signed_message_version
 
     receipt = _v2_receipt_fields()
     message = signed_message_from_receipt(receipt)
@@ -223,7 +265,7 @@ def test_v1_legacy_receipt_still_reconstructs() -> None:
 
     receipt = _v1_receipt_fields()
     assert signed_message_version(receipt) == SIGNED_MESSAGE_VERSION_V1
-    assert signed_message_from_receipt(receipt) == _signed_message()
+    assert reconstruct_signed_message(receipt) == _signed_message()
 
     marked = {**receipt, VERSION_FIELD: SIGNED_MESSAGE_VERSION_V1}
     assert signed_message_version(marked) == SIGNED_MESSAGE_VERSION_V1
@@ -324,9 +366,13 @@ def test_missing_optional_inputs_is_unverifiable_not_verified() -> None:
 
 
     # A current v2 receipt verifies from the receipt, the claim and the key.
-def test_v2_receipt_verifies_from_receipt_and_claim_alone() -> None:
-    receipt, verify = _v2_receipt()
-    result = verify_attestation_offline(_CLAIM, receipt, verify_signature=verify)
+def test_v2_receipt_verified_keyed() -> None:
+    fixture = _load_v2_fixture()
+    result = verify_attestation_offline(
+        fixture["claim"],
+        fixture["receipt"],
+        verify_signature=_fixture_verifier(fixture),
+    )
     assert result["verdict"] == VERDICT_VERIFIED_KEYED
     assert result["failure_class"] is None
     by_name = {a["name"]: a["result"] for a in result["axes"]}
@@ -404,7 +450,7 @@ def test_v2_commitment_byte_flip_fails_signature() -> None:
     receipt["statementHash"] = compute_statement_hash(
         _CLAIM, flipped, receipt["keyId"], receipt["timestamp"]
     )
-    assert signed_message_from_receipt(receipt) != _V2_GOLDEN_MESSAGE
+    assert reconstruct_signed_message(receipt) != _V2_GOLDEN_MESSAGE
     result = verify_attestation_offline(_CLAIM, receipt, verify_signature=verify)
     by_name = {a["name"]: a["result"] for a in result["axes"]}
     assert by_name["statement_hash"] == "PASS"
@@ -418,7 +464,7 @@ def test_v2_commitment_byte_flip_fails_signature() -> None:
 def test_v2_receipt_over_v1_bytes_fails() -> None:
     receipt, verify = _v2_receipt()
     receipt.update(actionId=_ACTION_ID, agentId=_AGENT_ID, orgId=_ORG_ID, claimType=_CLAIM["type"])
-    assert signed_message_from_receipt(receipt) != _V2_GOLDEN_MESSAGE
+    assert reconstruct_signed_message(receipt) != _V2_GOLDEN_MESSAGE
     result = verify_attestation_offline(_CLAIM, receipt, verify_signature=verify)
     by_name = {a["name"]: a["result"] for a in result["axes"]}
     assert by_name["signature"] == "FAIL"
@@ -431,7 +477,7 @@ def test_negctl_missing_field_is_named() -> None:
     field = "commitmentAlg"
     del receipt[field]
     with pytest.raises(Exception) as refused:
-        signed_message_from_receipt(receipt)
+        reconstruct_signed_message(receipt)
     assert isinstance(refused.value, ValueError)
     assert field in str(refused.value)
     result = verify_attestation_offline(_CLAIM, receipt, verify_signature=verify)
@@ -452,7 +498,7 @@ def test_v1_missing_field_refused() -> None:
     del receipt[field]
     assert signed_message_version(receipt) == SIGNED_MESSAGE_VERSION_V1
     with pytest.raises(ValueError, match=field):
-        signed_message_from_receipt(receipt)
+        reconstruct_signed_message(receipt)
     result = verify_attestation_offline(_CLAIM, receipt, verify_signature=verify)
     signature = next(a for a in result["axes"] if a["name"] == "signature")
     assert signature["result"] == "FAIL"
