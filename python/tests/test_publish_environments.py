@@ -97,7 +97,9 @@ def test_npm_environment_check_rejects_missing_environment() -> None:
     assert _problems(always, NPM_ENV, CHECK_IF), "checker accepted an if that always runs"
 
     negated = copy.deepcopy(doc)
-    negated["jobs"]["publish-typescript"]["if"] = f"!startsWith(github.ref, '{TAG_PREFIX[NPM_ENV]}')"
+    negated["jobs"]["publish-typescript"]["if"] = (
+        f"!startsWith(github.ref, '{TAG_PREFIX[NPM_ENV]}')"
+    )
     assert _problems(negated, NPM_ENV, CHECK_IF), "checker accepted a negated if"
 
     wrong_prefix = copy.deepcopy(doc)
@@ -116,7 +118,9 @@ def test_pypi_environment_check_rejects_wrong_environment() -> None:
 
     wrong = copy.deepcopy(doc)
     wrong["jobs"]["publish-python"]["environment"] = {"name": NPM_ENV}
-    assert _problems(wrong, PYPI_ENV, CHECK_ENV), "checker accepted a pypi job in the npm environment"
+    assert _problems(wrong, PYPI_ENV, CHECK_ENV), (
+        "checker accepted a pypi job in the npm environment"
+    )
 
 
 def test_pypi_if_check_rejects_broad_and_wrong_prefix() -> None:
