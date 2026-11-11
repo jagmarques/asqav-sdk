@@ -174,12 +174,12 @@ its own Python runtime plus `cryptography` and `dilithium-py`, so it can check
 ML-DSA-65 (Asqav's primary format), Ed25519 (EdDSA), and ES256 with nothing else
 installed.
 
-Download the Linux arm64 binary (`asqav-verify-linux-arm64`, the only asset the
+Download the Linux x64 binary (`asqav-verify-linux-x64`, the only asset the
 release carries), then run it on a receipt:
 
 ```bash
-chmod +x asqav-verify-linux-arm64
-./asqav-verify-linux-arm64 receipt.json --keys keys.json
+chmod +x asqav-verify-linux-x64
+./asqav-verify-linux-x64 receipt.json --keys keys.json
 ```
 
 It prints the same JSON verdict and uses the same exit codes (0 verified /

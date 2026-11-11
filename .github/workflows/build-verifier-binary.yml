@@ -1,6 +1,6 @@
 name: build-verifier-binary
 
-# Single-file `asqav-verify` binary for Linux arm64 on the self-hosted runners.
+# Single-file `asqav-verify` binary for Linux x64 on the self-hosted runners (x86_64 CX53 boxes).
 # The job verifies the real ML-DSA-65 prod vector through the freshly built binary.
 
 on:
@@ -17,7 +17,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - asset: asqav-verify-linux-arm64
+          - asset: asqav-verify-linux-x64
             ext: ''
     steps:
       - uses: actions/checkout@v4
@@ -40,6 +40,10 @@ jobs:
           from asqav.verifier.oracle.__main__ import main
           sys.exit(main())
           PY
+
+      - name: The runner builds for its own arch, so the asset name must match it
+        shell: bash
+        run: test "$(uname -m)" = x86_64 || { echo "asqav-verify-linux-x64 needs an x86_64 runner, this one is $(uname -m)"; exit 1; }
 
       - name: Build the single-file binary
         run: >
