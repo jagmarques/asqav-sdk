@@ -7,6 +7,9 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ### Fixed
 
+- **The TypeScript offline verifier rebuilds the members a cloud flat hash-mode receipt signs.**
+  It adds the signed outcome fields a receipt carries to the rebuilt bytes, as the Python
+  verifier does, and no longer lists them as unsigned.
 - **The Python offline verifier rebuilds the members a cloud flat hash-mode receipt signs.**
   It now covers the flat members including `previous_receipt_hash`, plus `result_digest`,
   `action_ref` and `invocation_ref` when the receipt carries them. On 0.10.14 and earlier, any
