@@ -5,8 +5,7 @@ from asqav.verifier.oracle.crypto import PASS, verify_signature
 from asqav.verifier.oracle.runner import NOT_APPLICABLE
 from asqav.verifier.verify_receipt import _strict_b64
 
-MISSING = "missing/unverified"
-ASSERTED = "asserted/unverified"
+MISSING, ASSERTED = "missing/unverified", "asserted/unverified"
 SIGNATURE_VERIFIED = "signature-verified"
 METHODS = frozenset({"manual_assertion", "sso", "hardware_key", "signed_statement"})
 

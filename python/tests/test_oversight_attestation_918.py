@@ -17,9 +17,9 @@ from asqav.verifier.oversight_attestation import (
 
 @pytest.fixture
 def env():
-    return {"type": "protectmcp:lifecycle:oversight_ruling", "reviewer": {
-        "principal": "reviewer_opaque_001", "authority": "oversight-charter-2026-s4",
-        "role": "oversight-judge"}}
+    return {"type": "protectmcp:lifecycle:oversight_ruling",
+            "reviewer": {"principal": "reviewer_opaque_001",
+                         "authority": "oversight-charter-2026-s4", "role": "oversight-judge"}}
 
 
 @pytest.fixture
@@ -45,9 +45,9 @@ def test_vector_049_manual_assertion_is_asserted(env):
 
 
 def test_vector_050_unsigned_is_asserted(signed):
-    env, _ = signed
+    env, key = signed
     del env["reviewer"]["attestation"]["signature"]
-    assert oversight_attestation(env) == ASSERTED
+    assert oversight_attestation(env, reviewer_key=key) == ASSERTED
 
 
 def test_vector_050_signed_under_reviewer_key_is_signature_verified(signed):
@@ -57,6 +57,7 @@ def test_vector_050_signed_under_reviewer_key_is_signature_verified(signed):
     assert oversight_attestation(env, reviewer_key=key) == ASSERTED
 
 
+# NEGCTL: byte 0 of the true-key signature flipped stays asserted
 def test_negctl_tampered_signature_is_asserted(signed):
     env, key = signed
     signature = env["reviewer"]["attestation"]["signature"]
@@ -64,19 +65,16 @@ def test_negctl_tampered_signature_is_asserted(signed):
     raw[0] ^= 0xFF
     signature["sig"] = base64.urlsafe_b64encode(raw).decode()
     result = oversight_attestation(env, reviewer_key=key)
-    assert result == ASSERTED
-    assert result != SIGNATURE_VERIFIED
+    assert result == ASSERTED and result != SIGNATURE_VERIFIED
 
 
 def test_self_carried_key_is_asserted(signed):
-    env, _ = signed
-    assert oversight_attestation(env) == ASSERTED
+    assert oversight_attestation(signed[0]) == ASSERTED
 
 
 def test_other_signer_key_is_asserted(signed):
     env, key = signed
-    public, _ = ML_DSA_65.keygen()
-    assert oversight_attestation(env, reviewer_key=(key[0], public)) == ASSERTED
+    assert oversight_attestation(env, reviewer_key=(key[0], ML_DSA_65.keygen()[0])) == ASSERTED
 
 
 @pytest.mark.parametrize("signed", ["manual_assertion"], indirect=True)
@@ -100,8 +98,7 @@ def test_invalid_signature_is_asserted(signed, field, value):
 
 
 def test_other_type_is_not_applicable(env):
-    env["type"] += ":other"
-    assert oversight_attestation(env) == NOT_APPLICABLE
+    assert oversight_attestation({**env, "type": "other"}) == NOT_APPLICABLE
 
 
 @pytest.mark.parametrize("method", sorted(METHODS))
