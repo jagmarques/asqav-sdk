@@ -24,6 +24,7 @@ jobs:
               - 'LICENSE'
               - 'README.md'
               - 'conformance/**'
+              - 'contracts/**'
               # The shared case tables gate both verifiers, so editing one must run
               # the jobs that consume it or the gate could be weakened unseen.
               - 'verifier/cross-language-cases.json'
@@ -44,6 +45,7 @@ jobs:
             typescript:
               - 'typescript/**'
               - 'conformance/**'
+              - 'contracts/**'
               # The TS verifier parity gate reads the shared conformance corpus,
               # so a corpus change must re-run the TS job (not just the Python one).
               - 'verifier/conformance-vectors/**'
