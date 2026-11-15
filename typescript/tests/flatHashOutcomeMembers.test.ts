@@ -43,24 +43,24 @@ function verify(name: string, tamper?: (receipt: Record<string, unknown>) => voi
 }
 
 describe("flat hash-mode outcome members", () => {
-  for (const [name, members] of Object.entries(OPTIONAL)) {
-    it(`${name} receipt verifies and rebuilds the twelve plus its outcome members`, () => {
-      expect(verify(name).verdict).toBe(VERDICT_VERIFIED);
-      expect(Object.keys(flatSignedFields(load(name).receipt))).toEqual([...TWELVE, ...members]);
-    });
-  }
+  it("each receipt verifies and rebuilds the twelve plus its outcome members", () => {
+    for (const [name, members] of Object.entries(OPTIONAL)) {
+      expect(verify(name).verdict, name).toBe(VERDICT_VERIFIED);
+      expect(Object.keys(flatSignedFields(load(name).receipt)), name).toEqual([...TWELVE, ...members]);
+    }
+  });
 
   // NEGCTL: each signed outcome member, changed after signing, is refused
-  for (const member of OPTIONAL.all_three) {
-    it(`tampered ${member} fails`, () => {
-      expect(verify("all_three").verdict).toBe(VERDICT_VERIFIED);
+  it("each tampered outcome member fails", () => {
+    expect(verify("all_three").verdict).toBe(VERDICT_VERIFIED);
+    for (const member of OPTIONAL.all_three) {
       const result = verify("all_three", (receipt) => {
         receipt[member] = "f".repeat(64);
       });
-      expect(result.verdict).toBe(VERDICT_UNVERIFIED);
-      expect(result.failureClass).toBe(FAILURE_INVALID);
-    });
-  }
+      expect(result.verdict, member).toBe(VERDICT_UNVERIFIED);
+      expect(result.failureClass, member).toBe(FAILURE_INVALID);
+    }
+  });
 
   // NEGCTL: an outcome member the signature never covered is refused
   it("outcome member added after signing fails", () => {
