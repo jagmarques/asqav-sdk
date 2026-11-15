@@ -57,7 +57,7 @@ def test_vector_050_signed_under_reviewer_key_is_signature_verified(signed):
     assert oversight_attestation(env, reviewer_key=key) == ASSERTED
 
 
-def test_vector_050_tampered_signature_is_asserted(signed):
+def test_negctl_tampered_signature_is_asserted(signed):
     env, key = signed
     signature = env["reviewer"]["attestation"]["signature"]
     raw = bytearray(base64.urlsafe_b64decode(signature["sig"]))

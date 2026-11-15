@@ -1,19 +1,18 @@
 from binascii import Error
-from typing import Any
 
 from asqav.canonicalize import canonicalize
 from asqav.verifier.oracle.crypto import PASS, verify_signature
+from asqav.verifier.oracle.runner import NOT_APPLICABLE
 from asqav.verifier.verify_receipt import _strict_b64
 
 MISSING = "missing/unverified"
 ASSERTED = "asserted/unverified"
 SIGNATURE_VERIFIED = "signature-verified"
-NOT_APPLICABLE = "not_applicable"
 METHODS = frozenset({"manual_assertion", "sso", "hardware_key", "signed_statement"})
 
 
 def oversight_attestation(
-    payload: dict[str, Any], *, reviewer_key: tuple[str, bytes] | None = None,
+    payload: dict[str, object], *, reviewer_key: tuple[str, bytes] | None = None,
 ) -> str:
     if payload.get("type") != "protectmcp:lifecycle:oversight_ruling":
         return NOT_APPLICABLE
