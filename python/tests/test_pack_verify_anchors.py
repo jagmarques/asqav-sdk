@@ -37,6 +37,7 @@ def test_pack_verify_anchor_fixtures() -> None:
     valid = _anchored()
     result = pv.verify_pack(valid["pack"], jwks=valid["jwks"])
     assert (result["status"], result["operator_independent"]) == (pv.VERIFIED, True)
+    # NEGCTL: the tampered RFC3161 token fails the same verify_pack call
     tampered = _anchored()
     token = bytearray(base64.b64decode(tampered["pack"]["anchors"][0]["value"]))
     token[token.find(_bound(tampered["pack"]))] ^= 0xFF
