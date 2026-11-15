@@ -1,0 +1,22 @@
+{
+  "entries": [
+    {"repo": "asqav-a2a", "target": "examples/integrations/a2a/", "status": "pending"},
+    {"repo": "asqav-activepieces", "target": "examples/integrations/activepieces/", "status": "pending"},
+    {"repo": "asqav-attio", "target": "examples/integrations/attio/", "status": "pending"},
+    {"repo": "asqav-autogen", "target": "examples/integrations/autogen/", "status": "pending"},
+    {"repo": "asqav-browser-extension", "target": "examples/integrations/browser-extension/", "status": "pending"},
+    {"repo": "asqav-cedar-policies", "target": "examples/integrations/cedar-policies/", "status": "pending"},
+    {"repo": "asqav-chatbase", "target": "examples/integrations/chatbase/", "status": "pending"},
+    {"repo": "asqav-crewai", "target": "examples/integrations/crewai/", "status": "pending"},
+    {"repo": "asqav-crewai-guardrail", "target": "examples/integrations/crewai-guardrail/", "status": "pending"},
+    {"repo": "asqav-flowise", "target": "examples/integrations/flowise/", "status": "pending"},
+    {"repo": "asqav-google-adk", "target": "examples/integrations/google-adk/", "status": "pending"},
+    {"repo": "asqav-kaibanjs", "target": "examples/integrations/kaibanjs/", "status": "pending"},
+    {"repo": "asqav-langchain", "target": "examples/integrations/langchain/", "status": "pending"},
+    {"repo": "asqav-langflow", "target": "examples/integrations/langflow/", "status": "pending"},
+    {"repo": "asqav-openai-agents", "target": "examples/integrations/openai-agents/", "status": "pending"},
+    {"repo": "asqav-registry", "target": "examples/integrations/registry/", "status": "pending"},
+    {"repo": "asqav-vercel-ai", "target": "examples/integrations/vercel-ai/", "status": "pending"},
+    {"repo": "dify-plugin-asqav", "target": "examples/integrations/dify-plugin/", "status": "pending"}
+  ]
+}
