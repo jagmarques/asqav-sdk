@@ -39,6 +39,7 @@ import {
   checkOrgBinding,
   checkOuterCopies,
   checkStructure,
+  FLAT_SIGNED_OPTIONAL,
   isRecognisedWireVersion,
   keyIssuerOf,
   keyOrgOf,
@@ -137,7 +138,13 @@ export function flatSignedFields(doc: Record<string, unknown>): Record<string, u
   if (hasOwn(doc, "previous_receipt_hash")) {
     fields.previous_receipt_hash = doc.previous_receipt_hash ?? null;
   }
-  return fields;
+  return { ...fields, ...flatOutcomeFields(doc) };
+}
+
+/** Each outcome field is signed when set and not null */
+function flatOutcomeFields(doc: Record<string, unknown>): Record<string, unknown> {
+  const set = FLAT_SIGNED_OPTIONAL.filter((name) => hasOwn(doc, name) && doc[name] != null);
+  return Object.fromEntries(set.map((name) => [name, doc[name]]));
 }
 
 /** Own-member read; inherited prototype members never select or validate. */
