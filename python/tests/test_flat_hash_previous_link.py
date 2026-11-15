@@ -1,13 +1,14 @@
 """Previous-link coverage for flat hash-mode receipts (criterion 926)."""
 from __future__ import annotations
 
-import json
+from functools import partial
 import os
-import subprocess
 import sys
 from pathlib import Path
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+
+from tests.conftest import run_flat_receipt
 
 from asqav.verifier.verify_receipt import (
     FAILURE_INVALID,
@@ -15,42 +16,8 @@ from asqav.verifier.verify_receipt import (
     VERDICT_VERIFIED,
 )
 
-_SRC = Path(__file__).resolve().parents[1] / "src"
 _FIXTURE = Path(__file__).resolve().parent / "fixtures" / "flat_hash_prev_link.json"
-
-_CHILD = """
-import json, sys
-from asqav import verify_receipt_offline
-from asqav.verifier import verify_receipt as vr
-from asqav.verifier.oracle.adapters.asqav_native import _flat_signed_fields
-data = json.load(sys.stdin)
-receipt = data["receipt"]
-print(json.dumps({
-    "result": verify_receipt_offline(receipt, data["jwks"]),
-    "fields": list(_flat_signed_fields(receipt)),
-    "signed": list(vr._FLAT_SIGNED),
-}))
-"""
-
-
-def _load() -> dict:
-    return json.loads(_FIXTURE.read_text())
-
-
-def _verdict(name: str, tamper=None) -> dict:
-    """Run one fixture receipt through this tree's verifier, out of process.
-    The child puts this repo's src first, so no install shadows it."""
-    data = _load()
-    receipt = data["receipts"][name]
-    if tamper is not None:
-        tamper(receipt)
-    env = {**os.environ, "PYTHONPATH": str(_SRC)}
-    done = subprocess.run(
-        [sys.executable, "-c", _CHILD],
-        input=json.dumps({"receipt": receipt, "jwks": data["jwks"]}),
-        capture_output=True, text=True, env=env, check=True,
-    )
-    return json.loads(done.stdout)
+_verdict = partial(run_flat_receipt, _FIXTURE)
 
 
 def _link_name(out: dict) -> str:
