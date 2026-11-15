@@ -35,12 +35,21 @@ describe("flat hash-mode signed members contract", () => {
     expect(Object.keys(flatSignedFields(doc))).toEqual([...shape.required, ...shape.optional]);
   });
 
-  // NEGCTL: a contract that lost one member is reported as drift
-  it("negctl dropped contract member is reported", () => {
+  it("dropped contract member is reported", () => {
     const shape = contract();
     for (const key of ["required", "optional"] as const) {
       const shrunk = { ...shape, [key]: shape[key].slice(1) };
       expect(drift(shrunk, FLAT_SIGNED, FLAT_SIGNED_OPTIONAL)).toEqual([shape[key][0]]);
     }
+  });
+
+  // NEGCTL: an outcome member set to null is not signed
+  it("negctl null outcome members stay out of the rebuilt members", () => {
+    const shape = contract();
+    const doc = Object.fromEntries([
+      ...shape.required.map((n) => [n, "x"]),
+      ...shape.optional.map((n) => [n, null]),
+    ]);
+    expect(Object.keys(flatSignedFields(doc))).toEqual(shape.required);
   });
 });

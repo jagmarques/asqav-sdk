@@ -36,8 +36,15 @@ def test_native_adapter_rebuilds_the_contract_members():
     assert list(asqav_native._flat_signed_fields(doc)) == names
 
 
-def test_negctl_dropped_contract_member_is_reported():
+def test_dropped_contract_member_is_reported():
     contract = _contract()
     for key in ("required", "optional"):
         shrunk = {**contract, key: contract[key][1:]}
         assert _drift(shrunk, vr._FLAT_SIGNED, vr._FLAT_SIGNED_OPTIONAL) == [contract[key][0]]
+
+
+# NEGCTL: an outcome member set to null is not signed
+def test_negctl_null_outcome_members_stay_out_of_the_rebuilt_members():
+    contract = _contract()
+    doc = {**{name: "x" for name in contract["required"]}, **{name: None for name in contract["optional"]}}
+    assert list(asqav_native._flat_signed_fields(doc)) == contract["required"]
