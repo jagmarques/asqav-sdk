@@ -660,6 +660,9 @@
     "post_applied_attestation": {
       "function": "(signature_id: 'str', *, applied_at: 'str', outcome: 'str', executor_pubkey_b64: 'str', executor_algorithm: 'str', signature_b64: 'str', error_code: 'str | None' = None) -> 'dict[str, Any]'"
     },
+    "oversight_attestation": {
+      "function": "(payload: dict[str, object], *, reviewer_key: tuple[str, bytes] | None = None) -> str"
+    },
     "reconstruct_signed_message": {
       "function": "(*, statement_hash: 'str', commitment: 'str', commitment_alg: 'str', key_id: 'str', claim_type: 'str', server_timestamp: 'str', action_id: 'str', agent_id: 'str', org_id: 'str') -> 'bytes'"
     },
