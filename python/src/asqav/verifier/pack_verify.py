@@ -6,6 +6,7 @@ from __future__ import annotations
 import hashlib
 from typing import Any
 
+from asqav.client._vocabulary import WITNESS_NAMESPACE
 from asqav.verifier import verify_receipt as vr
 
 VERIFIED = "verified"
@@ -410,6 +411,60 @@ def trusted_anchor_times(receipts: list, tsa_keys: list, headers) -> list:
     return times
 
 
+_RFC3161 = next(t for t in WITNESS_NAMESPACE if t.startswith("rfc"))
+_OPENTIMESTAMPS = next(t for t in WITNESS_NAMESPACE if t.startswith("open"))
+
+NO_ANCHOR_NOTE = "no external anchor covers the whole pack: the signer holds the key, so the pack alone does not prove anything against the operator"
+UNVERIFIED_ANCHOR_NOTE = "external anchors are present but none verified here: the signer holds the key, so the pack alone does not prove anything against the operator"
+VERIFIED_ANCHOR_NOTE = "{n} external anchor(s) cover the whole pack, verified against material that is not the pack's operator key"
+
+
+def _anchor_status(anchor: object, bound: bytes, material: list[Any], headers: Any) -> tuple[str, str]:
+    if not isinstance(anchor, dict):
+        return INVALID, f"malformed anchor entry (got {type(anchor).__name__}, expected an object)"
+    atype = anchor.get("type")
+    blob = vr._anchor_bytes(anchor.get("value"))
+    if blob is None:
+        return INVALID, f"{atype}: value missing or malformed"
+    if atype == _RFC3161:
+        outcome, detail, _when = vr._check_rfc3161_anchor(blob, bound, material)
+    elif atype == _OPENTIMESTAMPS:
+        outcome, detail, _when = vr._check_ots_anchor(blob, bound, headers)
+    else:
+        return NOT_OFFLINE, f"{atype}: no offline verifier for this anchor type"
+    return {"verified": VERIFIED, "invalid": INVALID}.get(outcome, NOT_OFFLINE), f"{atype}: {detail}"
+
+
+def _anchor_audit(pack: dict[str, Any], tsa_keys: Any, headers: Any) -> tuple[str, bool, str]:
+    """(status, operator_independent, note) for the pack's own anchors."""
+    if "anchors" not in pack or pack["anchors"] == []:
+        return "", False, NO_ANCHOR_NOTE
+    anchors = pack["anchors"]
+    if not isinstance(anchors, list):
+        return INVALID, False, f"anchors field is not a list (got {type(anchors).__name__})"
+    try:
+        bound = bytes.fromhex(pack["bundle_digest"].removeprefix("sha256:"))
+    except (KeyError, AttributeError, ValueError):
+        return INVALID, False, "pack carries no readable sha256 bundle_digest for its anchors"
+    operator = {pack.get("bundle_public_key")}
+    operator.update(k.get("public_key") for k in _jwks_keys(pack.get("jwks")))
+    carried = pack.get("tsa_trust")
+    carried = carried if isinstance(carried, list) else [carried]
+    material = list(tsa_keys or []) + [
+        vr.tsa_key_material(entry.encode("utf-8"))
+        for entry in carried
+        if isinstance(entry, str) and entry and entry not in operator
+    ]
+    results = [_anchor_status(a, bound, material, headers) for a in anchors]
+    failed = [note for status, note in results if status == INVALID]
+    if failed:
+        return INVALID, False, "external anchor failed: " + "; ".join(failed)
+    verified = sum(status == VERIFIED for status, _ in results)
+    if verified:
+        return "", True, VERIFIED_ANCHOR_NOTE.format(n=verified)
+    return "", False, UNVERIFIED_ANCHOR_NOTE
+
+
 def _worst(statuses) -> str:
     return max(statuses, key=_RANK.__getitem__, default=VERIFIED)
 
@@ -422,7 +477,7 @@ def _apply(result: dict, issues: list, bundle_ok: bool) -> dict:
     return result
 
 
-def verify_pack(pack: dict, *, jwks: dict | None = None, tsa_keys=None, bitcoin_headers=None) -> dict:
+def verify_pack(pack: dict[str, Any], *, jwks: dict[str, Any] | None = None, tsa_keys: Any = None, bitcoin_headers: Any = None) -> dict[str, Any]:
     """Per-receipt and pack report. Trust comes only from ``jwks`` and
     ``tsa_keys``; without ``jwks`` the pack snapshot is self_consistent."""
     anchored = isinstance(jwks, dict)
@@ -441,7 +496,11 @@ def verify_pack(pack: dict, *, jwks: dict | None = None, tsa_keys=None, bitcoin_
         for i, r in enumerate(receipts)
     ]
     counts = {s: sum(1 for r in results if r["status"] == s) for s in (VERIFIED, NOT_OFFLINE, INVALID)}
-    status = _worst([bundle["status"]] + [r["status"] for r in results])
+    anchor_status, independent, anchor_note = _anchor_audit(pack, pinned, bitcoin_headers)
+    statuses = [bundle["status"]] + [r["status"] for r in results]
+    if anchor_status == INVALID:
+        statuses.append(INVALID)
+    status = _worst(statuses)
     if status != INVALID and not anchored:
         status = SELF_CONSISTENT
     return {
@@ -450,6 +509,8 @@ def verify_pack(pack: dict, *, jwks: dict | None = None, tsa_keys=None, bitcoin_
         "bundle": bundle,
         "receipts": results,
         "summary": {"total": len(results), **counts},
+        "operator_independent": independent,
+        "operator_independence_note": anchor_note,
         "trust": {
             "anchored": anchored,
             "keys": "supplied key set" if anchored else "pack key snapshot (self-asserted)",
