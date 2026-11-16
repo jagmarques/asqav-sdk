@@ -37,43 +37,45 @@ def check_entries(entries: list[dict]) -> None:
         seen_target.add(target)
 
 
-def manifest_entries() -> list[dict]:
-    return json.loads(MANIFEST.read_text(encoding="utf-8"))["entries"]
-
-
 def test_manifest_entries_valid() -> None:
-    entries = manifest_entries()
+    entries = json.loads(MANIFEST.read_text(encoding="utf-8"))["entries"]
     assert check_entries(entries) is None
     assert len(entries) > 0
 
 
-# NEGCTL: an entry with no target key is refused, naming the key.
+# NEGCTL
 def test_entry_without_target_rejected() -> None:
-    entry = dict(manifest_entries()[0])
-    del entry["target"]
+    entries = [{"repo": "asqav-x", "status": "pending"}]
     try:
-        check_entries([entry])
+        check_entries(entries)
     except AssertionError as err:
         assert "target" in str(err)
     else:
         raise AssertionError("an entry without a target was accepted")
 
 
-# NEGCTL: two entries naming one target folder are refused as a duplicate.
+# NEGCTL
 def test_duplicate_target_rejected() -> None:
-    first, second = manifest_entries()[:2]
-    second = dict(second, target=first["target"])
+    target = f"{TARGET_PREFIX}a/"
+    entries = [
+        {"repo": "asqav-a", "target": target, "status": "pending"},
+        {"repo": "asqav-b", "target": target, "status": "pending"},
+    ]
     try:
-        check_entries([first, second])
+        check_entries(entries)
     except AssertionError as err:
         assert "duplicate" in str(err)
     else:
         raise AssertionError("two entries with one target were accepted")
 
 
-# NEGCTL: an excluded repo name is refused even when its entry is well formed.
+# NEGCTL
 def test_excluded_repo_rejected() -> None:
-    entry = dict(manifest_entries()[0], repo=EXCLUDED[1])
+    entry = {
+        "repo": EXCLUDED[1],
+        "target": f"{TARGET_PREFIX}pydantic/",
+        "status": "pending",
+    }
     try:
         check_entries([entry])
     except AssertionError as err:
