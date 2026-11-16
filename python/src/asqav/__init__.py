@@ -166,6 +166,7 @@ from .retry import with_async_retry, with_retry
 from .scope import ScopeToken, create_scope_token, is_replay, verify_scope_token
 from .verifier.oracle import ADAPTERS as _ADAPTERS
 from .verifier.oracle import verify as _oracle_verify
+from .verifier.oversight_attestation import oversight_attestation
 from .verifier.verify_receipt import REGISTRY_EDITION as _REGISTRY_EDITION
 from .verifier.verify_receipt import REGISTRY_VERSION as _REGISTRY_VERSION
 from .verifier.verify_receipt import fetch_jwks
@@ -368,6 +369,7 @@ __all__ = [
     # Offline / air-gapped verification helpers
     "fetch_jwks",
     "verify_receipt_offline",
+    "oversight_attestation",
     # Opaque-claim attestation commitments and offline verification
     "new_opening",
     "commit",

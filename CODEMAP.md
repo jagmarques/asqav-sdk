@@ -108,6 +108,7 @@ names | tests: test files named after the module.
 ## python/src/asqav/verifier/
 
 - `__init__.py` - Bundled neutral receipt verifier (oracle + standalone verify_receipt)
+- `oversight_attestation.py` | symbols: oversight_attestation | tests: python/tests/test_oversight_attestation_918.py
 - `pack_verify.py` - Offline verification of a whole exported Audit Pack; every check | symbols: signed_bundle_payload pack_tsa_count mapping_issues check_bundle chain_issues chain_context verify_entry trusted_anchor_times verify_pack
 - `vc_export.py` - Export-only shim: an Asqav receipt in W3C VC 2.0 shape (EU-lane), not a wire | symbols: to_vc_envelope | tests: python/tests/test_vc_export.py
 - `verify_receipt.py` - Standalone Asqav receipt verifier: stdlib, optional crypto deps. Offline: | symbols: canonical_json canonical_json_pre_cutover has_supplementary_member_name envelope_minus_anchors_jcs is_keyed_digest VerifierInputError DuplicateMemberError UnsafeIntegerError fetch_jwks is_akp_public_key is_well_formed akp_jwk jwk_thumbprint thumbprint_for_key evaluate_anchors (+48 more) | tests: python/tests/test_verify_receipt.py python/tests/test_verify_receipt_failclean.py python/tests/test_verify_receipt_jcs_utf16.py
