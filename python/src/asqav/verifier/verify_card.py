@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import hmac
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from asqav.verifier.verify_receipt import _parse_stamp, _strict_b64, canonical_json
 
@@ -14,12 +14,13 @@ NONCE_UNBOUND = "nonce_unbound"
 SIGNATURE_INVALID = "signature_invalid"
 
 
-def _expiry(card: dict):
-    expires = card.get("card_expires_at")
-    if expires is not None:
-        return _parse_stamp(expires)
-    signed = _parse_stamp(card.get("card_signed_at"))
-    return None if signed is None else signed + timedelta(seconds=CARD_TTL_SECONDS)
+def _expired(card: dict, now) -> bool:
+    """Expiry stamp: card_expires_at, else card_signed_at + the TTL."""
+    field = "card_expires_at" if card.get("card_expires_at") is not None else "card_signed_at"
+    stamp = _parse_stamp(card.get(field))
+    if stamp is None or not isinstance(now, datetime) or now.tzinfo is None:
+        return True
+    return now >= stamp if field == "card_expires_at" else (now - stamp).total_seconds() >= CARD_TTL_SECONDS
 
 
 def _nonce_failure(card: dict, expected_nonce) -> str | None:
@@ -28,10 +29,9 @@ def _nonce_failure(card: dict, expected_nonce) -> str | None:
     if card.get("nonce_bound") is False or not card.get("client_nonce"):
         return NONCE_UNBOUND
     try:
-        matched = hmac.compare_digest(card["client_nonce"], expected_nonce)
+        return None if hmac.compare_digest(card["client_nonce"], expected_nonce) else NONCE_MISMATCH
     except TypeError:
-        matched = False
-    return None if matched else NONCE_MISMATCH
+        return NONCE_MISMATCH
 
 
 def _signature_failure(card: dict) -> str | None:
@@ -50,18 +50,10 @@ def _signature_failure(card: dict) -> str | None:
 
 
 def verify_card(card, expected_nonce, now) -> list[str]:
-    """Failures in fixed order; [] only when every check passes. Never raises;
-    unreadable input fails closed with named failures."""
-    if not isinstance(card, dict):
-        card = {}
-    failures = []
-    expiry = _expiry(card)
-    if not isinstance(now, datetime) or now.tzinfo is None or expiry is None or now >= expiry:
-        failures.append(CARD_EXPIRED)
-    nonce = _nonce_failure(card, expected_nonce)
-    if nonce is not None:
-        failures.append(nonce)
-    signature = _signature_failure(card)
-    if signature is not None:
-        failures.append(signature)
+    """Failures in fixed order; [] passes. Bad input fails closed."""
+    card = card if isinstance(card, dict) else {}
+    failures = [CARD_EXPIRED] if _expired(card, now) else []
+    for failure in (_nonce_failure(card, expected_nonce), _signature_failure(card)):
+        if failure is not None:
+            failures.append(failure)
     return failures

@@ -60,12 +60,19 @@ def test_expired_card_returns_card_expired(keypair):
     now = SIGNED_AT + timedelta(seconds=60)
     card = _signed_card(keypair, card_expires_at=(now - timedelta(seconds=1)).isoformat())
     assert verify_card(card, NONCE, now) == [CARD_EXPIRED]
+    assert verify_card(_signed_card(keypair, card_expires_at="?"), NONCE, now) == [CARD_EXPIRED]
+    stale = _signed_card(keypair, card_expires_at=None)
+    past_ttl = SIGNED_AT + timedelta(seconds=CARD_TTL_SECONDS + 1)
+    assert verify_card(stale, NONCE, past_ttl) == [CARD_EXPIRED]
 
 
 # NEGCTL
 def test_unbound_card_with_expected_nonce_returns_nonce_unbound(keypair):
-    card = _signed_card(keypair, nonce_bound=False, client_nonce=None)
-    assert verify_card(card, "a" * 32, SIGNED_AT + timedelta(seconds=60)) == [NONCE_UNBOUND]
+    now = SIGNED_AT + timedelta(seconds=60)
+    unbound = _signed_card(keypair, nonce_bound=False)
+    assert verify_card(unbound, NONCE, now) == [NONCE_UNBOUND]
+    unmarked = _signed_card(keypair, nonce_bound=False, client_nonce=None)
+    assert verify_card(unmarked, "a" * 32, now) == [NONCE_UNBOUND]
 
 
 def test_mismatched_nonce_returns_nonce_mismatch(keypair):
