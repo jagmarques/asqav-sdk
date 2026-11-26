@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import base64
+import hashlib
+import json
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import pytest
 
@@ -20,6 +23,17 @@ from asqav.verifier.verify_receipt import canonical_json
 ML_DSA_65 = pytest.importorskip("dilithium_py.ml_dsa").ML_DSA_65
 SIGNED_AT = datetime(2026, 4, 22, 20, 0, tzinfo=timezone.utc)
 NONCE = "n" * 32
+VECTORS = Path(__file__).resolve().parents[2] / "conformance" / "vectors.json"
+ASQAV_SHA256 = {
+    "stale_card": "0dcced0b29db5e9c29f5b71b4693c01443371042dd523e97fb917dad3b4040e9",
+    "nonce_mismatch": "0d3916bae22c889c9bf77c2edecf91849366a8b3b8fb64a1d291e9a319904c9a",
+    "card_version_downgrade": "9d62c8f11b8d3922e838edfecd866eae20e4865b38cdd58092e8b592aa789c30",
+}
+
+
+def _sdk_vector(name):
+    corpus = json.loads(VECTORS.read_text())["vectors"]
+    return next(vector for vector in corpus if vector["name"] == name)
 
 
 @pytest.fixture(scope="module")
@@ -84,3 +98,33 @@ def test_tampered_card_returns_signature_invalid(keypair):
     card = _signed_card(keypair)
     card["card_version"] = "a2a.v0"
     assert verify_card(card, NONCE, SIGNED_AT + timedelta(seconds=60)) == [SIGNATURE_INVALID]
+
+
+def test_sdk_card_vectors_match_asqav():
+    for name, digest in ASQAV_SHA256.items():
+        vector = _sdk_vector(name)
+        canonical = hashlib.sha256(canonical_json(vector["input"])).hexdigest()
+        assert canonical == vector["sha256"] == digest
+
+
+# NEGCTL
+def test_stale_card_vector_returns_card_expired():
+    vector = _sdk_vector("stale_card")
+    now = datetime(2026, 4, 22, 20, 1, tzinfo=timezone.utc)
+    assert CARD_EXPIRED in verify_card(dict(vector["input"]), None, now)
+
+
+# NEGCTL
+def test_nonce_mismatch_vector_returns_nonce_mismatch():
+    vector = _sdk_vector("nonce_mismatch")
+    now = datetime.fromisoformat(vector["input"]["card_signed_at"]) + timedelta(seconds=60)
+    failures = verify_card(dict(vector["input"]), vector["peer_sent_nonce"], now)
+    assert NONCE_MISMATCH in failures
+    assert CARD_EXPIRED not in failures
+
+
+# NEGCTL
+def test_downgrade_vector_returns_signature_invalid():
+    vector = _sdk_vector("card_version_downgrade")
+    now = datetime.fromisoformat(vector["input"]["card_signed_at"]) + timedelta(seconds=60)
+    assert SIGNATURE_INVALID in verify_card(dict(vector["input"]), None, now)
