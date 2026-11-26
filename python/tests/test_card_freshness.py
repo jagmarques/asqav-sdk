@@ -29,6 +29,11 @@ ASQAV_SHA256 = {
     "nonce_mismatch": "0d3916bae22c889c9bf77c2edecf91849366a8b3b8fb64a1d291e9a319904c9a",
     "card_version_downgrade": "9d62c8f11b8d3922e838edfecd866eae20e4865b38cdd58092e8b592aa789c30",
 }
+ASQAV_ENTRY_SHA256 = {
+    "stale_card": "51831364f9061a9c958d99831fec582bd30697d449bae9cca8ebb6b8540f3000",
+    "nonce_mismatch": "923afee51eb29ae74becef5f4046f64af55b2de01ab7e14647e1362295303616",
+    "card_version_downgrade": "de176054c0e26926734bb254d14618801c7f510a58b8b6b2963a93d6e2c4976b",
+}
 
 
 def _sdk_vector(name):
@@ -105,6 +110,8 @@ def test_sdk_card_vectors_match_asqav():
         vector = _sdk_vector(name)
         canonical = hashlib.sha256(canonical_json(vector["input"])).hexdigest()
         assert canonical == vector["sha256"] == digest
+        entry = hashlib.sha256(canonical_json(vector)).hexdigest()
+        assert entry == ASQAV_ENTRY_SHA256[name]
 
 
 # NEGCTL
